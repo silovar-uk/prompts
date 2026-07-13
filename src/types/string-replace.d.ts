@@ -8,7 +8,7 @@ declare global {
      */
     replace(
       searchValue: string | RegExp,
-      replacer: string | ((substring: string, ...args: unknown[]) => string)
+      replacer: string | ((substring: string, ...args: any[]) => string)
     ): string;
   }
 }
