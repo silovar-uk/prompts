@@ -1,0 +1,12 @@
+[
+  { "slug": "arrange", "label": "整える", "order": 1 },
+  { "slug": "think", "label": "考える", "order": 2 },
+  { "slug": "research", "label": "調べる", "order": 3 },
+  { "slug": "create", "label": "作る", "order": 4 },
+  { "slug": "compare", "label": "比べる", "order": 5 },
+  { "slug": "inspect", "label": "点検する", "order": 6 },
+  { "slug": "improve", "label": "改善する", "order": 7 },
+  { "slug": "convert", "label": "変換する", "order": 8 },
+  { "slug": "shorten", "label": "短くする", "order": 9 },
+  { "slug": "summarize", "label": "まとめる", "order": 10 }
+]

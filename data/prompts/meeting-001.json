@@ -1,0 +1,45 @@
+{
+  "id": "meeting-001",
+  "type": "base",
+  "version": 1,
+  "title": "会議メモから決定事項と次の行動を抜き出す",
+  "shortTitle": "会議の決定だけ整理",
+  "emoji": "📝",
+  "problem": "会議メモが長く、何が決まり、誰が何をするのか分からない",
+  "summary": "決定事項・未決事項・担当・期限を、流し読みできる形に整理します。",
+  "category": "meeting",
+  "intents": ["arrange", "summarize"],
+  "inputTypes": ["meeting-log", "memo"],
+  "outputTypes": ["bullet-list"],
+  "audiences": ["internal"],
+  "stages": ["post-meeting", "handoff"],
+  "tags": ["議事録", "決定事項", "ネクストアクション"],
+  "searchPhrases": [
+    "会議で決まったことだけ出したい",
+    "議事録から次の行動を整理したい",
+    "ミーティングメモを構造化したい",
+    "担当と期限を抜き出したい",
+    "未決事項を確認したい"
+  ],
+  "requiredInputs": [
+    {
+      "id": "meetingNotes",
+      "label": "会議メモ",
+      "type": "textarea",
+      "placeholder": "会話ログやメモを貼り付け"
+    }
+  ],
+  "optionalInputs": [
+    {
+      "id": "meetingPurpose",
+      "label": "会議の目的",
+      "type": "text",
+      "placeholder": "分かる範囲で入力"
+    }
+  ],
+  "promptTemplate": "あなたは実務に強い議事録編集者です。以下の会議メモを、要約ではなく意思決定と実行管理のために構造化してください。発言にない内容は推測しないでください。\n\n{{#meetingPurpose}}## 会議の目的\n{{meetingPurpose}}\n\n{{/meetingPurpose}}## 会議メモ\n{{meetingNotes}}\n\n## 出力順\n1. 決定事項\n2. ネクストアクション（担当・期限・完了条件）\n3. 未決事項・確認が必要なこと\n4. 共有しておく背景\n\n不明な担当や期限は「未定」と明記してください。",
+  "compatibleModifiers": ["mod-critical", "mod-gentle", "mod-plain-japanese"],
+  "relatedIds": ["writing-001", "planning-001"],
+  "mobilePriority": 5,
+  "updatedAt": "2026-07-13"
+}

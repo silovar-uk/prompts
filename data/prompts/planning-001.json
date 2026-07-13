@@ -1,0 +1,51 @@
+{
+  "id": "planning-001",
+  "type": "workflow",
+  "version": 1,
+  "title": "企画の弱点を前提から批判的に点検する",
+  "shortTitle": "企画の弱点を点検",
+  "emoji": "🔥",
+  "problem": "企画案はあるが、誰を動かすのか、実現できるのか、弱点が見えていない",
+  "summary": "目的・対象・導線・数字・運用リスクを分け、使える素材を残して再設計します。",
+  "category": "planning",
+  "intents": ["think", "inspect", "improve"],
+  "inputTypes": ["memo", "url"],
+  "outputTypes": ["analysis", "action-plan"],
+  "audiences": ["internal", "decision-maker"],
+  "stages": ["planning", "pre-approval"],
+  "tags": ["批判的分析", "企画改善", "実現性"],
+  "searchPhrases": [
+    "この企画のダメなところを見つけたい",
+    "企画を厳しく見てほしい",
+    "施策の前提から疑いたい",
+    "企画の実現性とリスクを確認したい",
+    "アイデアを実行計画に変えたい"
+  ],
+  "requiredInputs": [
+    {
+      "id": "planOverview",
+      "label": "企画の概要",
+      "type": "textarea",
+      "placeholder": "企画メモ、目的、対象などを貼り付け"
+    }
+  ],
+  "optionalInputs": [
+    {
+      "id": "successMetric",
+      "label": "成功指標",
+      "type": "text",
+      "placeholder": "来場者数、申込数、売上など"
+    },
+    {
+      "id": "constraints",
+      "label": "制約",
+      "type": "textarea",
+      "placeholder": "予算、期限、運用条件など"
+    }
+  ],
+  "promptTemplate": "あなたは企画戦略と実務運用の両方に強いレビュー担当です。以下の企画を、単に面白いかではなく、目的達成・対象者の行動・実現性の観点から批判的に点検してください。使える素材は必ず拾い、最後は改善後の実行案にしてください。\n\n## 企画の概要\n{{planOverview}}\n\n{{#successMetric}}## 成功指標\n{{successMetric}}\n\n{{/successMetric}}{{#constraints}}## 制約\n{{constraints}}\n\n{{/constraints}}## 点検項目\n- 誰を、なぜ動かす企画か\n- この企画でなければならない理由\n- 目的と施策のつながり\n- 申込・購入・参加までの導線\n- 数字の前提と未確認事項\n- 関係者調整と当日運用の負荷\n- 想定される失敗と先回りの対策\n\n## 出力\n1. 企画の一文定義\n2. 良い点\n3. 弱点と根拠\n4. 見落としている前提\n5. 改善案\n6. 最初に着手する3項目",
+  "compatibleModifiers": ["mod-critical", "mod-gentle", "mod-plain-japanese"],
+  "relatedIds": ["meeting-001"],
+  "mobilePriority": 5,
+  "updatedAt": "2026-07-13"
+}

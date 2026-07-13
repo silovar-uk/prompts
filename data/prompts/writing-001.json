@@ -1,0 +1,45 @@
+{
+  "id": "writing-001",
+  "type": "base",
+  "version": 1,
+  "title": "内容を変えずに文章を短くする",
+  "shortTitle": "意味を保って短く",
+  "emoji": "✂️",
+  "problem": "文章が長く、同じ説明や回りくどい表現が重複している",
+  "summary": "意味や温度感を保ちながら、冗長な部分だけを整理します。",
+  "category": "writing",
+  "intents": ["arrange", "shorten"],
+  "inputTypes": ["text"],
+  "outputTypes": ["body"],
+  "audiences": ["general", "internal"],
+  "stages": ["draft", "pre-final"],
+  "tags": ["重複削除", "簡潔", "リライト"],
+  "searchPhrases": [
+    "文章を短くしたい",
+    "意味を変えずに削りたい",
+    "重複をなくしたい",
+    "長い文面を簡潔にしたい",
+    "回りくどい文章を整えたい"
+  ],
+  "requiredInputs": [
+    {
+      "id": "targetText",
+      "label": "対象の文章",
+      "type": "textarea",
+      "placeholder": "ここに文章を貼り付け"
+    }
+  ],
+  "optionalInputs": [
+    {
+      "id": "targetLength",
+      "label": "希望する長さ",
+      "type": "select",
+      "options": ["元の8割程度", "半分くらい", "3行", "SNS向け（140字）"]
+    }
+  ],
+  "promptTemplate": "あなたは編集者です。以下の文章について、意味・事実・温度感を変えずに、重複や冗長表現を整理してください。読みやすいリズムを優先し、必要な情報は削らないでください。\n\n## 対象の文章\n{{targetText}}\n\n{{#targetLength}}## 希望する長さ\n{{targetLength}}{{/targetLength}}\n\n## 出力\n- 整形後の本文のみ\n- 変更内容の説明や前置きは不要",
+  "compatibleModifiers": ["mod-critical", "mod-gentle", "mod-plain-japanese"],
+  "relatedIds": ["meeting-001"],
+  "mobilePriority": 5,
+  "updatedAt": "2026-07-13"
+}

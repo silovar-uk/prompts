@@ -1,0 +1,10 @@
+{
+  "id": "mod-gentle",
+  "title": "角を立てずに伝える",
+  "emoji": "🌿",
+  "summary": "率直さを保ちながら柔らかく整えます",
+  "slot": "stance",
+  "text": "## 追加条件\n- 必要な指摘は残しつつ、相手を責める印象にならない表現にしてください。",
+  "conflictsWith": ["mod-critical"],
+  "searchPhrases": ["やさしく伝えたい", "角を立てたくない", "柔らかく"]
+}

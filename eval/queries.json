@@ -1,0 +1,8 @@
+[
+  { "query": "長い文章を短くしたい", "expectedIds": ["writing-001"], "k": 3 },
+  { "query": "文面の重複を削りたい", "expectedIds": ["writing-001"], "k": 3 },
+  { "query": "会議で決まったことだけ出したい", "expectedIds": ["meeting-001"], "k": 3 },
+  { "query": "MTGの担当と期限を整理", "expectedIds": ["meeting-001"], "k": 3 },
+  { "query": "企画を厳しくレビューして", "expectedIds": ["planning-001"], "k": 3 },
+  { "query": "施策の弱点とリスク", "expectedIds": ["planning-001"], "k": 3 }
+]

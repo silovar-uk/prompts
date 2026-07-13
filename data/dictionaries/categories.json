@@ -1,0 +1,5 @@
+[
+  { "slug": "writing", "label": "文章", "color": "#E6002D" },
+  { "slug": "meeting", "label": "会議", "color": "#F5C400" },
+  { "slug": "planning", "label": "企画", "color": "#2E9B55" }
+]
