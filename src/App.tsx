@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Catalog, Modifier, Prompt } from "./schema/catalog";
+import type { Catalog, InputField, Modifier, Prompt } from "./schema/catalog";
 import { catalogSchema, promptSchema } from "./schema/catalog";
 import { scorePrompt } from "./search/core";
-import { LocalPromptWizard } from "./components/LocalPromptWizard";
+import { LocalPromptWizard, type LocalPromptWizardMode } from "./components/LocalPromptWizard";
+import { PromptCard } from "./components/PromptCard";
 import { githubNewFileUrl } from "./local/createLocalPrompt";
+import { findDuplicatePairs } from "./local/duplicates";
 import {
   createDefaultSnapshot,
   selectPersonalSnapshot,
@@ -21,6 +23,12 @@ interface LoadState {
 }
 
 type Tab = "search" | "favorites" | "history" | "settings";
+
+type WizardState = {
+  mode: LocalPromptWizardMode;
+  source?: Prompt;
+  query: string;
+};
 
 const navItems: Array<{ id: Tab; emoji: string; label: string }> = [
   { id: "search", emoji: "🔍", label: "探す" },
@@ -70,7 +78,12 @@ function greeting(): string {
   return "こんばんは";
 }
 
-function buildSettings(prompt: Prompt, values: Record<string, string>, modifiers: string[], includeFreeText = false): PromptSettings {
+function buildSettings(
+  prompt: Prompt,
+  values: Record<string, string>,
+  modifiers: string[],
+  includeFreeText = false
+): PromptSettings {
   const optionalValues = Object.fromEntries(
     prompt.optionalInputs
       .filter((field) => includeFreeText || field.type === "select")
@@ -101,7 +114,9 @@ function sanitizeSnapshot(input: unknown): PersonalSnapshot | null {
   const preferences = source.prefs && typeof source.prefs === "object" ? source.prefs as Record<string, unknown> : {};
   const theme: ThemeMode = preferences.theme === "light" || preferences.theme === "dark" ? preferences.theme : "auto";
   const lastAi: AiTarget = preferences.lastAi === "claude" ? "claude" : "chatgpt";
-  const favorites = Array.isArray(source.favorites) ? source.favorites.filter((item): item is string => typeof item === "string") : [];
+  const favorites = Array.isArray(source.favorites)
+    ? source.favorites.filter((item): item is string => typeof item === "string")
+    : [];
   const recentQueries = Array.isArray(source.recentQueries)
     ? source.recentQueries.filter((item): item is string => typeof item === "string").slice(0, 8)
     : [];
@@ -117,7 +132,9 @@ function sanitizeSnapshot(input: unknown): PersonalSnapshot | null {
       }).map((entry) => ({
         promptId: entry.promptId,
         copiedAt: entry.copiedAt,
-        modifiers: Array.isArray(entry.modifiers) ? entry.modifiers.filter((item): item is string => typeof item === "string") : [],
+        modifiers: Array.isArray(entry.modifiers)
+          ? entry.modifiers.filter((item): item is string => typeof item === "string")
+          : [],
         optionalValues: entry.optionalValues && typeof entry.optionalValues === "object" ? entry.optionalValues : {}
       })).slice(0, 50)
     : [];
@@ -153,6 +170,52 @@ function fallbackCopy(text: string): boolean {
   return succeeded;
 }
 
+interface PromptFieldProps {
+  field: InputField;
+  value: string;
+  onChange: (value: string) => void;
+  large?: boolean;
+}
+
+function PromptField({ field, value, onChange, large = false }: PromptFieldProps) {
+  const baseClass = large
+    ? "mt-2 w-full resize-y rounded-2xl border border-zinc-700 bg-zinc-900 p-4 text-base leading-7 text-white placeholder:text-zinc-600"
+    : "mt-2 min-h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 text-white placeholder:text-zinc-600";
+
+  return (
+    <label className="block text-sm font-bold text-zinc-300">
+      {field.label}
+      {field.type === "select" ? (
+        <select value={value} onChange={(event) => onChange(event.target.value)} className={baseClass}>
+          <option value="">指定なし</option>
+          {field.options?.map((option) => <option key={option}>{option}</option>)}
+        </select>
+      ) : field.type === "textarea" ? (
+        <>
+          <textarea
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={field.placeholder}
+            rows={large ? 7 : 4}
+            className={baseClass}
+          />
+          {large && value.length > 0 && (
+            <span className="mt-1 block text-right text-xs font-medium text-zinc-500">{value.length.toLocaleString()}文字</span>
+          )}
+        </>
+      ) : (
+        <input
+          type={field.type === "url" ? "url" : field.type === "number" ? "number" : "text"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={field.placeholder}
+          className={baseClass}
+        />
+      )}
+    </label>
+  );
+}
+
 export default function App() {
   const [{ catalog, error }, setLoadState] = useState<LoadState>({ catalog: null, error: null });
   const [tab, setTab] = useState<Tab>("search");
@@ -165,8 +228,7 @@ export default function App() {
   const [showPreview, setShowPreview] = useState(false);
   const [toast, setToast] = useState("");
   const [copySheetOpen, setCopySheetOpen] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [wizardQuery, setWizardQuery] = useState("");
+  const [wizardState, setWizardState] = useState<WizardState | null>(null);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [systemDark, setSystemDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? true);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -214,7 +276,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const interval = window.setInterval(() => setPlaceholderIndex((current) => (current + 1) % rotatingPlaceholders.length), 4200);
+    const interval = window.setInterval(
+      () => setPlaceholderIndex((current) => (current + 1) % rotatingPlaceholders.length),
+      4200
+    );
     return () => window.clearInterval(interval);
   }, []);
 
@@ -308,11 +373,25 @@ export default function App() {
     .map((entry) => ({ entry, prompt: allPrompts.find((prompt) => prompt.id === entry.promptId) }))
     .filter((item): item is { entry: UsageEntry; prompt: Prompt } => Boolean(item.prompt));
   const totalCopyCount = Object.values(usage).reduce((sum, item) => sum + item.copyCount, 0);
-  const topPrompts = useMemo(() => Object.entries(usage)
-    .sort(([, a], [, b]) => b.copyCount - a.copyCount)
-    .slice(0, 3)
-    .map(([id, data]) => ({ prompt: allPrompts.find((item) => item.id === id), count: data.copyCount }))
-    .filter((item): item is { prompt: Prompt; count: number } => Boolean(item.prompt)), [allPrompts, usage]);
+  const topPrompts = useMemo(
+    () => Object.entries(usage)
+      .sort(([, a], [, b]) => b.copyCount - a.copyCount)
+      .slice(0, 3)
+      .map(([id, data]) => ({ prompt: allPrompts.find((item) => item.id === id), count: data.copyCount }))
+      .filter((item): item is { prompt: Prompt; count: number } => Boolean(item.prompt)),
+    [allPrompts, usage]
+  );
+  const duplicatePairs = useMemo(
+    () => catalog
+      ? findDuplicatePairs(allPrompts, {
+          synonyms: catalog.dictionaries.synonyms,
+          requireIds: localPromptIds,
+          threshold: 0.62,
+          limit: 6
+        })
+      : [],
+    [allPrompts, catalog, localPromptIds]
+  );
 
   function flash(message: string) {
     if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
@@ -331,18 +410,19 @@ export default function App() {
     if (query.trim()) addRecentQuery(query);
   }
 
-  function openWizard(initial = "") {
-    setWizardQuery(initial);
-    setWizardOpen(true);
+  function openWizard(mode: LocalPromptWizardMode = "create", source?: Prompt, initialQuery = "") {
+    setSelectedPrompt(null);
+    setWizardState({ mode, source, query: initialQuery });
   }
 
   function saveLocalPrompt(prompt: Prompt) {
+    const mode = wizardState?.mode ?? "create";
     upsertLocalPrompt(prompt);
-    setWizardOpen(false);
+    setWizardState(null);
     setQuery(prompt.title);
     setTab("search");
     openPrompt(prompt);
-    flash("端末内に保存しました");
+    flash(mode === "edit" ? "更新しました" : mode === "duplicate" ? "複製しました" : "端末内に保存しました");
   }
 
   function toggleModifier(modifier: Modifier) {
@@ -429,73 +509,158 @@ export default function App() {
     }
   }
 
-  function PromptCard({ prompt }: { prompt: Prompt }) {
+  function renderCard(prompt: Prompt) {
     const category = categoryMap.get(prompt.category);
-    const favorite = favorites.includes(prompt.id);
-    const copyCount = usage[prompt.id]?.copyCount ?? 0;
-    const isLocal = localPromptIds.has(prompt.id);
     return (
-      <article className="tool-card relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-4 shadow-lg shadow-black/10">
-        <span className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: category?.color ?? "#E6002D" }} />
-        <div className="flex items-start gap-3 pl-1">
-          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-zinc-800 text-2xl" aria-hidden="true">{prompt.emoji}</div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-black leading-6 text-white">{prompt.title}</h3>
-              <button type="button" aria-label={favorite ? "お気に入りから外す" : "お気に入りに追加"} onClick={() => toggleFavorite(prompt.id)} className="grid min-h-11 min-w-11 place-items-center rounded-xl text-xl">{favorite ? "⭐" : "☆"}</button>
-            </div>
-            <p className="mt-1 text-sm leading-6 text-zinc-400">{prompt.summary}</p>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <div className="flex flex-wrap gap-1.5 text-[11px] font-bold text-zinc-400">
-                <span className="rounded-full bg-zinc-800 px-2.5 py-1">{category?.label ?? prompt.category}</span>
-                {isLocal && <span className="rounded-full bg-yellow-400 px-2.5 py-1 text-zinc-950">端末内</span>}
-                <span className="rounded-full bg-zinc-800 px-2.5 py-1">必要: {prompt.requiredInputs[0]?.label ?? "なし"}</span>
-                {copyCount > 0 && <span className="rounded-full bg-zinc-800 px-2.5 py-1">{copyCount}回使用</span>}
-              </div>
-              <button type="button" onClick={() => openPrompt(prompt)} className="min-h-11 shrink-0 rounded-xl bg-reds-500 px-4 text-sm font-black text-white active:scale-95">使う</button>
-            </div>
-          </div>
-        </div>
-      </article>
+      <PromptCard
+        key={prompt.id}
+        prompt={prompt}
+        categoryLabel={category?.label ?? prompt.category}
+        categoryColor={category?.color ?? "#E6002D"}
+        favorite={favorites.includes(prompt.id)}
+        copyCount={usage[prompt.id]?.copyCount ?? 0}
+        isLocal={localPromptIds.has(prompt.id)}
+        onToggleFavorite={() => toggleFavorite(prompt.id)}
+        onUse={() => openPrompt(prompt)}
+      />
     );
   }
 
-  if (wizardOpen && catalog) {
+  if (wizardState && catalog) {
     return (
       <div className={resolvedTheme === "light" ? "theme-light" : ""}>
-        <LocalPromptWizard catalog={catalog} initialQuery={wizardQuery} onCancel={() => setWizardOpen(false)} onSave={saveLocalPrompt} />
+        <LocalPromptWizard
+          catalog={catalog}
+          existingPrompts={allPrompts}
+          initialQuery={wizardState.query}
+          initialPrompt={wizardState.source}
+          mode={wizardState.mode}
+          onCancel={() => setWizardState(null)}
+          onSave={saveLocalPrompt}
+        />
       </div>
     );
   }
 
   if (selectedPrompt) {
-    const compatible = selectedPrompt.compatibleModifiers.map((id) => modifierMap.get(id)).filter((item): item is Modifier => Boolean(item));
+    const compatible = selectedPrompt.compatibleModifiers
+      .map((id) => modifierMap.get(id))
+      .filter((item): item is Modifier => Boolean(item));
     const orderedTargets: AiTarget[] = prefs.lastAi === "claude" ? ["claude", "chatgpt"] : ["chatgpt", "claude"];
+    const isLocal = localPromptIds.has(selectedPrompt.id);
+
     return (
       <div className={`app-shell mx-auto flex min-h-[100dvh] w-full max-w-[430px] flex-col bg-zinc-950 text-zinc-50 ${resolvedTheme === "light" ? "theme-light" : ""}`}>
         <header className="safe-top sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/95 px-4 pb-3 backdrop-blur">
           <button type="button" onClick={() => setSelectedPrompt(null)} className="min-h-11 rounded-xl px-2 text-sm font-bold text-zinc-300">← 戻る</button>
           <div className="flex items-start gap-3">
             <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-zinc-900 text-2xl">{selectedPrompt.emoji}</div>
-            <div className="min-w-0 flex-1"><h1 className="text-xl font-black leading-7">{selectedPrompt.title}</h1><p className="mt-1 text-sm leading-6 text-zinc-400">{selectedPrompt.summary}</p></div>
-            <button type="button" onClick={() => toggleFavorite(selectedPrompt.id)} className="grid min-h-11 min-w-11 place-items-center rounded-xl text-xl">{favorites.includes(selectedPrompt.id) ? "⭐" : "☆"}</button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-xl font-black leading-7">{selectedPrompt.title}</h1>
+              <p className="mt-1 text-sm leading-6 text-zinc-400">{selectedPrompt.summary}</p>
+            </div>
+            <button type="button" onClick={() => toggleFavorite(selectedPrompt.id)} className="grid min-h-11 min-w-11 place-items-center rounded-xl text-xl">
+              {favorites.includes(selectedPrompt.id) ? "⭐" : "☆"}
+            </button>
           </div>
+          {isLocal && (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button type="button" onClick={() => openWizard("edit", selectedPrompt)} className="min-h-10 rounded-xl bg-zinc-900 text-xs font-black text-zinc-300">✏️ 編集</button>
+              <button type="button" onClick={() => openWizard("duplicate", selectedPrompt)} className="min-h-10 rounded-xl bg-zinc-900 text-xs font-black text-zinc-300">⧉ 複製</button>
+            </div>
+          )}
         </header>
+
         <main className="flex-1 space-y-6 px-4 pb-36 pt-5">
-          {selectedPrompt.requiredInputs.length > 0 && <section>
-            <h2 className="text-sm font-black text-zinc-200">必須入力</h2>
-            <div className="mt-3 space-y-4">{selectedPrompt.requiredInputs.map((field) => <label key={field.id} className="block text-sm font-bold text-zinc-300">{field.label}
-              {field.type === "textarea" ? <><textarea value={values[field.id] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.id]: event.target.value }))} placeholder={field.placeholder} rows={7} className="mt-2 w-full resize-y rounded-2xl border border-zinc-700 bg-zinc-900 p-4 text-base leading-7 text-white placeholder:text-zinc-600" />{(values[field.id]?.length ?? 0) > 0 && <span className="mt-1 block text-right text-xs font-medium text-zinc-500">{values[field.id].length.toLocaleString()}文字</span>}</> : <input type={field.type === "url" ? "url" : field.type === "number" ? "number" : "text"} value={values[field.id] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.id]: event.target.value }))} placeholder={field.placeholder} className="mt-2 min-h-12 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-4 text-base text-white placeholder:text-zinc-600" />}
-            </label>)}</div>
-          </section>}
-          {compatible.length > 0 && <section><h2 className="text-sm font-black text-zinc-200">条件を追加</h2><div className="mt-3 flex flex-wrap gap-2">{compatible.map((modifier) => { const active = selectedModifiers.includes(modifier.id); return <button key={modifier.id} type="button" onClick={() => toggleModifier(modifier)} className={`min-h-11 rounded-full border px-4 text-sm font-bold transition active:scale-95 ${active ? "border-reds-500 bg-reds-500 text-white" : "border-zinc-700 bg-zinc-900 text-zinc-300"}`}>{modifier.emoji} {modifier.title}</button>; })}</div></section>}
-          {selectedPrompt.optionalInputs.length > 0 && <details className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4"><summary className="cursor-pointer font-black text-zinc-200">詳細設定</summary><div className="mt-4 space-y-4">{selectedPrompt.optionalInputs.map((field) => <label key={field.id} className="block text-sm font-bold text-zinc-300">{field.label}
-            {field.type === "select" ? <select value={values[field.id] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.id]: event.target.value }))} className="mt-2 min-h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 text-white"><option value="">指定なし</option>{field.options?.map((option) => <option key={option}>{option}</option>)}</select> : field.type === "textarea" ? <textarea value={values[field.id] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.id]: event.target.value }))} placeholder={field.placeholder} rows={4} className="mt-2 w-full rounded-xl border border-zinc-700 bg-zinc-950 p-3 text-white" /> : <input type={field.type === "url" ? "url" : field.type === "number" ? "number" : "text"} value={values[field.id] ?? ""} onChange={(event) => setValues((current) => ({ ...current, [field.id]: event.target.value }))} placeholder={field.placeholder} className="mt-2 min-h-12 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 text-white" />}
-          </label>)}</div></details>}
-          <section><button type="button" onClick={() => setShowPreview((current) => !current)} className="min-h-11 text-sm font-bold text-zinc-300">{showPreview ? "▼" : "▶"} 生成されるプロンプトを確認</button>{showPreview && <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl border border-zinc-800 bg-black p-4 text-xs leading-6 text-zinc-300">{finalPrompt}</pre>}</section>
+          {selectedPrompt.requiredInputs.length > 0 && (
+            <section>
+              <h2 className="text-sm font-black text-zinc-200">必須入力</h2>
+              <div className="mt-3 space-y-4">
+                {selectedPrompt.requiredInputs.map((field) => (
+                  <PromptField
+                    key={field.id}
+                    field={field}
+                    value={values[field.id] ?? ""}
+                    onChange={(value) => setValues((current) => ({ ...current, [field.id]: value }))}
+                    large
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {compatible.length > 0 && (
+            <section>
+              <h2 className="text-sm font-black text-zinc-200">条件を追加</h2>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {compatible.map((modifier) => {
+                  const active = selectedModifiers.includes(modifier.id);
+                  return (
+                    <button
+                      key={modifier.id}
+                      type="button"
+                      onClick={() => toggleModifier(modifier)}
+                      className={`min-h-11 rounded-full border px-4 text-sm font-bold transition active:scale-95 ${active ? "border-reds-500 bg-reds-500 text-white" : "border-zinc-700 bg-zinc-900 text-zinc-300"}`}
+                    >
+                      {modifier.emoji} {modifier.title}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {selectedPrompt.optionalInputs.length > 0 && (
+            <details className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
+              <summary className="cursor-pointer font-black text-zinc-200">詳細設定</summary>
+              <div className="mt-4 space-y-4">
+                {selectedPrompt.optionalInputs.map((field) => (
+                  <PromptField
+                    key={field.id}
+                    field={field}
+                    value={values[field.id] ?? ""}
+                    onChange={(value) => setValues((current) => ({ ...current, [field.id]: value }))}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
+
+          <section>
+            <button type="button" onClick={() => setShowPreview((current) => !current)} className="min-h-11 text-sm font-bold text-zinc-300">
+              {showPreview ? "▼" : "▶"} 生成されるプロンプトを確認
+            </button>
+            {showPreview && (
+              <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl border border-zinc-800 bg-black p-4 text-xs leading-6 text-zinc-300">{finalPrompt}</pre>
+            )}
+          </section>
         </main>
-        <div className="keyboard-aware-bottom safe-bottom fixed inset-x-0 z-30 mx-auto w-full max-w-[430px] border-t border-zinc-800 bg-zinc-950/95 p-3 backdrop-blur"><button type="button" onClick={copyPrompt} className="min-h-14 w-full rounded-2xl bg-reds-500 text-base font-black text-white shadow-lg shadow-red-950/40 active:scale-[0.98]">📋 プロンプトをコピー</button></div>
-        {copySheetOpen && <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/60" role="presentation" onClick={() => setCopySheetOpen(false)}><section role="dialog" aria-modal="true" aria-labelledby="copy-actions-title" onClick={(event) => event.stopPropagation()} className="safe-bottom w-full max-w-[430px] rounded-t-3xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl"><div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-zinc-700" /><h2 id="copy-actions-title" className="text-lg font-black">コピー完了。どこで使う？</h2><div className="mt-4 grid gap-2">{orderedTargets.map((target) => <button key={target} type="button" onClick={() => openAi(target)} className="min-h-12 rounded-2xl bg-zinc-800 px-4 text-left text-sm font-black text-white">{aiTargets[target].emoji} {aiTargets[target].label}</button>)}<button type="button" onClick={saveCurrentSettings} className="min-h-12 rounded-2xl border border-zinc-700 px-4 text-left text-sm font-bold text-zinc-300">💾 今回の条件を保存</button></div></section></div>}
+
+        <div className="keyboard-aware-bottom safe-bottom fixed inset-x-0 z-30 mx-auto w-full max-w-[430px] border-t border-zinc-800 bg-zinc-950/95 p-3 backdrop-blur">
+          <button type="button" onClick={copyPrompt} className="min-h-14 w-full rounded-2xl bg-reds-500 text-base font-black text-white shadow-lg shadow-red-950/40 active:scale-[0.98]">
+            📋 プロンプトをコピー
+          </button>
+        </div>
+
+        {copySheetOpen && (
+          <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/60" role="presentation" onClick={() => setCopySheetOpen(false)}>
+            <section role="dialog" aria-modal="true" aria-labelledby="copy-actions-title" onClick={(event) => event.stopPropagation()} className="safe-bottom w-full max-w-[430px] rounded-t-3xl border border-zinc-700 bg-zinc-900 p-4 shadow-2xl">
+              <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-zinc-700" />
+              <h2 id="copy-actions-title" className="text-lg font-black">コピー完了。どこで使う？</h2>
+              <div className="mt-4 grid gap-2">
+                {orderedTargets.map((target) => (
+                  <button key={target} type="button" onClick={() => openAi(target)} className="min-h-12 rounded-2xl bg-zinc-800 px-4 text-left text-sm font-black text-white">
+                    {aiTargets[target].emoji} {aiTargets[target].label}
+                  </button>
+                ))}
+                <button type="button" onClick={saveCurrentSettings} className="min-h-12 rounded-2xl border border-zinc-700 px-4 text-left text-sm font-bold text-zinc-300">
+                  💾 今回の条件を保存
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
         {toast && <div role="status" className="toast-position fixed left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-black text-zinc-950 shadow-xl">{toast}</div>}
       </div>
     );
@@ -505,40 +670,210 @@ export default function App() {
     <div className={`app-shell mx-auto flex min-h-[100dvh] w-full max-w-[430px] flex-col bg-zinc-950/90 text-zinc-50 ${resolvedTheme === "light" ? "theme-light" : ""}`}>
       <div className="h-1 w-full bg-reds-500" />
       <main className="safe-top flex-1 px-4 pb-28">
-        {tab === "search" && <>
-          <header className="pt-2"><p className="text-sm font-semibold text-zinc-400">{greeting()} 👋</p><h1 className="mt-1 text-2xl font-black tracking-tight text-white">何をしたい？</h1></header>
-          <section className="mt-4">
-            <label className="relative block"><span className="sr-only">プロンプトを検索</span><span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔍</span><input value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && query.trim()) addRecentQuery(query); }} placeholder={rotatingPlaceholders[placeholderIndex]} className="min-h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-900 pl-12 pr-11 text-base text-white shadow-inner placeholder:text-zinc-600" />{query && <button type="button" aria-label="検索語を消す" onClick={() => setQuery("")} className="absolute right-1 top-1 grid min-h-12 min-w-11 place-items-center text-zinc-400">✕</button>}</label>
-            {!query && recentQueries.length > 0 && <div className="mt-3 flex flex-wrap gap-2" aria-label="最近の検索">{recentQueries.slice(0, 4).map((item) => <button key={item} type="button" onClick={() => setQuery(item)} className="min-h-10 rounded-full bg-zinc-900 px-3 text-xs font-bold text-zinc-400">🕘 {item}</button>)}</div>}
-            <div className="mt-4 flex flex-wrap gap-2">{intentChips.map(([id, label]) => <button key={id} type="button" onClick={() => setIntent(intent === id ? "" : id)} className={`min-h-11 rounded-full px-4 text-sm font-bold ${intent === id ? "bg-reds-500 text-white" : "bg-zinc-900 text-zinc-300"}`}>{label}</button>)}</div>
-            <div className="mt-2 flex flex-wrap gap-2">{inputChips.map(([id, label]) => <button key={id} type="button" onClick={() => setInputType(inputType === id ? "" : id)} className={`min-h-11 rounded-full border px-4 text-sm font-bold ${inputType === id ? "border-yellow-400 bg-yellow-400 text-zinc-950" : "border-zinc-800 bg-zinc-950 text-zinc-400"}`}>{label}</button>)}</div>
+        {tab === "search" && (
+          <>
+            <header className="pt-2">
+              <p className="text-sm font-semibold text-zinc-400">{greeting()} 👋</p>
+              <h1 className="mt-1 text-2xl font-black tracking-tight text-white">何をしたい？</h1>
+            </header>
+
+            <section className="mt-4">
+              <label className="relative block">
+                <span className="sr-only">プロンプトを検索</span>
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-xl">🔍</span>
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && query.trim()) addRecentQuery(query);
+                  }}
+                  placeholder={rotatingPlaceholders[placeholderIndex]}
+                  className="min-h-14 w-full rounded-2xl border border-zinc-700 bg-zinc-900 pl-12 pr-11 text-base text-white shadow-inner placeholder:text-zinc-600"
+                />
+                {query && <button type="button" aria-label="検索語を消す" onClick={() => setQuery("")} className="absolute right-1 top-1 grid min-h-12 min-w-11 place-items-center text-zinc-400">✕</button>}
+              </label>
+
+              {!query && recentQueries.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2" aria-label="最近の検索">
+                  {recentQueries.slice(0, 4).map((item) => (
+                    <button key={item} type="button" onClick={() => setQuery(item)} className="min-h-10 rounded-full bg-zinc-900 px-3 text-xs font-bold text-zinc-400">🕘 {item}</button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                {intentChips.map(([id, label]) => (
+                  <button key={id} type="button" onClick={() => setIntent(intent === id ? "" : id)} className={`min-h-11 rounded-full px-4 text-sm font-bold ${intent === id ? "bg-reds-500 text-white" : "bg-zinc-900 text-zinc-300"}`}>{label}</button>
+                ))}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {inputChips.map(([id, label]) => (
+                  <button key={id} type="button" onClick={() => setInputType(inputType === id ? "" : id)} className={`min-h-11 rounded-full border px-4 text-sm font-bold ${inputType === id ? "border-yellow-400 bg-yellow-400 text-zinc-950" : "border-zinc-800 bg-zinc-950 text-zinc-400"}`}>{label}</button>
+                ))}
+              </div>
+            </section>
+
+            {error && <p role="alert" className="mt-5 rounded-2xl bg-amber-500/10 p-4 text-sm text-amber-300">カタログを読み込めませんでした：{error}</p>}
+
+            <section className="mt-7">
+              <div className="mb-3 flex items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-reds-500">Suggestions</p>
+                  <h2 className="mt-1 text-lg font-black">{hasSearchCondition ? (weakMatch ? "近い候補" : "おすすめ候補") : "おすすめ"}</h2>
+                </div>
+                <span className="text-xs text-zinc-500">上位{Math.min(5, rankedPrompts.length)}件</span>
+              </div>
+              {weakMatch && (
+                <div className="mb-3 rounded-2xl border border-dashed border-zinc-700 p-4 text-sm leading-6 text-zinc-400">
+                  <p>ぴったりは無かったけど、近い道具を先に出しています。</p>
+                  <button type="button" onClick={() => openWizard("create", undefined, query)} className="mt-3 min-h-11 w-full rounded-xl bg-zinc-900 px-3 text-left font-black text-white">
+                    ＋ この内容で自分用プロンプトを作る
+                  </button>
+                </div>
+              )}
+              <div className="space-y-3">{rankedPrompts.slice(0, weakMatch ? 3 : 5).map(({ prompt }) => renderCard(prompt))}</div>
+            </section>
+          </>
+        )}
+
+        {tab === "favorites" && (
+          <section className="pt-3">
+            <h1 className="text-2xl font-black">よく使う ⭐</h1>
+            <p className="mt-1 text-sm text-zinc-400">前回の条件を引き継いで、すぐ再開できます。</p>
+            <div className="mt-5 space-y-3">
+              {favoritePrompts.length
+                ? favoritePrompts.map((prompt) => renderCard(prompt))
+                : <p className="rounded-2xl border border-dashed border-zinc-700 p-5 text-sm text-zinc-400">まだお気に入りがありません。カードの☆を押すと追加できます。</p>}
+            </div>
           </section>
-          {error && <p role="alert" className="mt-5 rounded-2xl bg-amber-500/10 p-4 text-sm text-amber-300">カタログを読み込めませんでした：{error}</p>}
-          <section className="mt-7">
-            <div className="mb-3 flex items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.18em] text-reds-500">Suggestions</p><h2 className="mt-1 text-lg font-black">{hasSearchCondition ? (weakMatch ? "近い候補" : "おすすめ候補") : "おすすめ"}</h2></div><span className="text-xs text-zinc-500">上位{Math.min(5, rankedPrompts.length)}件</span></div>
-            {weakMatch && <div className="mb-3 rounded-2xl border border-dashed border-zinc-700 p-4 text-sm leading-6 text-zinc-400"><p>ぴったりは無かったけど、近い道具を先に出しています。</p><button type="button" onClick={() => openWizard(query)} className="mt-3 min-h-11 w-full rounded-xl bg-zinc-900 px-3 text-left font-black text-white">＋ この内容で自分用プロンプトを作る</button></div>}
-            <div className="space-y-3">{rankedPrompts.slice(0, weakMatch ? 3 : 5).map(({ prompt }) => <PromptCard key={prompt.id} prompt={prompt} />)}</div>
+        )}
+
+        {tab === "history" && (
+          <section className="pt-3">
+            <h1 className="text-2xl font-black">履歴 🕘</h1>
+            <p className="mt-1 text-sm leading-6 text-zinc-400">貼り付けた本文は保存していません。使った道具と安全な選択条件だけを記録します。</p>
+            <div className="mt-5 space-y-3">
+              {historyPrompts.length ? historyPrompts.map(({ entry, prompt }, index) => (
+                <button key={`${entry.copiedAt}-${index}`} type="button" onClick={() => openPrompt(prompt, entry)} className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-left">
+                  <span className="text-2xl">{prompt.emoji}</span>
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-sm text-white">{prompt.title}</strong>
+                    <span className="mt-1 block text-xs text-zinc-500">{new Date(entry.copiedAt).toLocaleString("ja-JP")}</span>
+                  </span>
+                  <span className="text-xs font-bold text-zinc-400">同じ条件で →</span>
+                </button>
+              )) : <p className="rounded-2xl border border-dashed border-zinc-700 p-5 text-sm text-zinc-400">まだ利用履歴がありません。</p>}
+            </div>
           </section>
-        </>}
+        )}
 
-        {tab === "favorites" && <section className="pt-3"><h1 className="text-2xl font-black">よく使う ⭐</h1><p className="mt-1 text-sm text-zinc-400">前回の条件を引き継いで、すぐ再開できます。</p><div className="mt-5 space-y-3">{favoritePrompts.length ? favoritePrompts.map((prompt) => <PromptCard key={prompt.id} prompt={prompt} />) : <p className="rounded-2xl border border-dashed border-zinc-700 p-5 text-sm text-zinc-400">まだお気に入りがありません。カードの☆を押すと追加できます。</p>}</div></section>}
+        {tab === "settings" && (
+          <section className="pt-3">
+            <h1 className="text-2xl font-black">設定 ⚙️</h1>
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-zinc-900 p-3"><p className="text-[11px] text-zinc-500">コピー</p><p className="mt-1 text-xl font-black">{totalCopyCount}</p></div>
+              <div className="rounded-2xl bg-zinc-900 p-3"><p className="text-[11px] text-zinc-500">お気に入り</p><p className="mt-1 text-xl font-black">{favorites.length}</p></div>
+              <div className="rounded-2xl bg-zinc-900 p-3"><p className="text-[11px] text-zinc-500">自作</p><p className="mt-1 text-xl font-black">{localPrompts.length}</p></div>
+            </div>
 
-        {tab === "history" && <section className="pt-3"><h1 className="text-2xl font-black">履歴 🕘</h1><p className="mt-1 text-sm leading-6 text-zinc-400">貼り付けた本文は保存していません。使った道具と安全な選択条件だけを記録します。</p><div className="mt-5 space-y-3">{historyPrompts.length ? historyPrompts.map(({ entry, prompt }, index) => <button key={`${entry.copiedAt}-${index}`} type="button" onClick={() => openPrompt(prompt, entry)} className="flex min-h-16 w-full items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 text-left"><span className="text-2xl">{prompt.emoji}</span><span className="min-w-0 flex-1"><strong className="block truncate text-sm text-white">{prompt.title}</strong><span className="mt-1 block text-xs text-zinc-500">{new Date(entry.copiedAt).toLocaleString("ja-JP")}</span></span><span className="text-xs font-bold text-zinc-400">同じ条件で →</span></button>) : <p className="rounded-2xl border border-dashed border-zinc-700 p-5 text-sm text-zinc-400">まだ利用履歴がありません。</p>}</div></section>}
+            <button type="button" onClick={() => openWizard()} className="mt-5 min-h-14 w-full rounded-2xl bg-reds-500 px-4 text-left text-sm font-black text-white">
+              ＋ 自分用プロンプトを追加
+            </button>
 
-        {tab === "settings" && <section className="pt-3">
-          <h1 className="text-2xl font-black">設定 ⚙️</h1>
-          <div className="mt-5 grid grid-cols-3 gap-3"><div className="rounded-2xl bg-zinc-900 p-3"><p className="text-[11px] text-zinc-500">コピー</p><p className="mt-1 text-xl font-black">{totalCopyCount}</p></div><div className="rounded-2xl bg-zinc-900 p-3"><p className="text-[11px] text-zinc-500">お気に入り</p><p className="mt-1 text-xl font-black">{favorites.length}</p></div><div className="rounded-2xl bg-zinc-900 p-3"><p className="text-[11px] text-zinc-500">自作</p><p className="mt-1 text-xl font-black">{localPrompts.length}</p></div></div>
-          <button type="button" onClick={() => openWizard("")} className="mt-5 min-h-14 w-full rounded-2xl bg-reds-500 px-4 text-left text-sm font-black text-white">＋ 自分用プロンプトを追加</button>
-          {localPrompts.length > 0 && <div className="mt-5 rounded-3xl border border-zinc-800 bg-zinc-900 p-4"><h2 className="text-sm font-black">端末内プロンプト</h2><p className="mt-1 text-xs leading-5 text-zinc-500">まず自分だけで使い、価値が確認できたものをGitHubへ登録できます。</p><div className="mt-4 space-y-3">{localPrompts.map((prompt) => <div key={prompt.id} className="rounded-2xl bg-zinc-950 p-3"><div className="flex items-center gap-3"><span className="text-2xl">{prompt.emoji}</span><strong className="min-w-0 flex-1 truncate text-sm">{prompt.title}</strong><button type="button" onClick={() => openPrompt(prompt)} className="min-h-10 rounded-xl bg-reds-500 px-3 text-xs font-black text-white">使う</button></div><div className="mt-3 grid grid-cols-3 gap-2"><button type="button" onClick={() => copyText(`${JSON.stringify(prompt, null, 2)}\n`, "JSONをコピーしました")} className="min-h-10 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300">JSON</button><button type="button" onClick={() => window.open(githubNewFileUrl(prompt), "_blank", "noopener,noreferrer")} className="min-h-10 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300">GitHub ↗</button><button type="button" onClick={() => { if (window.confirm(`「${prompt.title}」を削除しますか？`)) deleteLocalPrompt(prompt.id); }} className="min-h-10 rounded-xl border border-zinc-700 text-xs font-bold text-zinc-500">削除</button></div></div>)}</div></div>}
-          {topPrompts.length > 0 && <div className="mt-5 rounded-2xl bg-zinc-900 p-4"><h2 className="text-sm font-black">今月の相棒プロンプト</h2><div className="mt-3 space-y-2">{topPrompts.map(({ prompt, count }, index) => <div key={prompt.id} className="flex items-center gap-3 text-sm"><span>{index + 1}位</span><span className="text-xl">{prompt.emoji}</span><span className="min-w-0 flex-1 truncate font-bold">{prompt.shortTitle}</span><span className="text-zinc-500">{count}回</span></div>)}</div></div>}
-          <div className="mt-5 rounded-2xl bg-zinc-900 p-4"><h2 className="text-sm font-black">表示テーマ</h2><div className="mt-3 grid grid-cols-3 gap-2">{(["auto", "dark", "light"] as ThemeMode[]).map((mode) => <button key={mode} type="button" onClick={() => setTheme(mode)} className={`min-h-11 rounded-xl text-sm font-bold ${prefs.theme === mode ? "bg-reds-500 text-white" : "bg-zinc-800 text-zinc-400"}`}>{mode === "auto" ? "自動" : mode === "dark" ? "黒" : "白"}</button>)}</div></div>
-          <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importData(file); }} />
-          <button type="button" onClick={exportData} className="mt-5 min-h-12 w-full rounded-2xl bg-zinc-900 px-4 text-left text-sm font-bold">データをエクスポート</button>
-          <button type="button" onClick={() => importInputRef.current?.click()} className="mt-3 min-h-12 w-full rounded-2xl bg-zinc-900 px-4 text-left text-sm font-bold">バックアップをインポート</button>
-          <button type="button" onClick={() => { if (window.confirm("自作プロンプトを含む個人データを削除しますか？")) clearPersonalData(); }} className="mt-3 min-h-12 w-full rounded-2xl border border-zinc-800 px-4 text-left text-sm font-bold text-zinc-400">個人データを削除</button>
-        </section>}
+            {localPrompts.length > 0 && (
+              <div className="mt-5 rounded-3xl border border-zinc-800 bg-zinc-900 p-4">
+                <h2 className="text-sm font-black">端末内プロンプト</h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">編集・複製しながら磨き、価値が確認できたものをGitHubへ登録できます。</p>
+                <div className="mt-4 space-y-3">
+                  {localPrompts.map((prompt) => (
+                    <div key={prompt.id} className="rounded-2xl bg-zinc-950 p-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{prompt.emoji}</span>
+                        <strong className="min-w-0 flex-1 truncate text-sm">{prompt.title}</strong>
+                        <button type="button" onClick={() => openPrompt(prompt)} className="min-h-10 rounded-xl bg-reds-500 px-3 text-xs font-black text-white">使う</button>
+                      </div>
+                      <div className="mt-3 grid grid-cols-3 gap-2">
+                        <button type="button" onClick={() => openWizard("edit", prompt)} className="min-h-10 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300">編集</button>
+                        <button type="button" onClick={() => openWizard("duplicate", prompt)} className="min-h-10 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300">複製</button>
+                        <button type="button" onClick={() => copyText(`${JSON.stringify(prompt, null, 2)}\n`, "JSONをコピーしました")} className="min-h-10 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300">JSON</button>
+                        <button type="button" onClick={() => window.open(githubNewFileUrl(prompt), "_blank", "noopener,noreferrer")} className="min-h-10 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300">GitHub ↗</button>
+                        <button type="button" onClick={() => openPrompt(prompt)} className="min-h-10 rounded-xl bg-zinc-800 text-xs font-bold text-zinc-300">確認</button>
+                        <button type="button" onClick={() => { if (window.confirm(`「${prompt.title}」を削除しますか？`)) deleteLocalPrompt(prompt.id); }} className="min-h-10 rounded-xl border border-zinc-700 text-xs font-bold text-zinc-500">削除</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {duplicatePairs.length > 0 && (
+              <div className="mt-5 rounded-3xl border border-amber-400/50 bg-amber-500/10 p-4">
+                <h2 className="text-sm font-black">似ているプロンプト</h2>
+                <p className="mt-1 text-xs leading-5 text-zinc-500">自作プロンプトを含む近い組み合わせです。統合できそうなら編集で整理します。</p>
+                <div className="mt-4 space-y-3">
+                  {duplicatePairs.map((pair) => {
+                    const editable = localPromptIds.has(pair.first.id) ? pair.first : pair.second;
+                    return (
+                      <div key={`${pair.first.id}:${pair.second.id}`} className="rounded-2xl bg-zinc-950/80 p-3">
+                        <div className="flex items-start gap-2 text-sm">
+                          <span>{pair.first.emoji}</span>
+                          <span className="min-w-0 flex-1 font-bold">{pair.first.title}</span>
+                          <span className="text-zinc-600">↔</span>
+                          <span>{pair.second.emoji}</span>
+                          <span className="min-w-0 flex-1 font-bold">{pair.second.title}</span>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <span className="text-xs text-zinc-500">近さ {Math.round(pair.score * 100)}% ・ {pair.reasons.join("・")}</span>
+                          <button type="button" onClick={() => openWizard("edit", editable)} className="min-h-9 shrink-0 rounded-xl bg-zinc-800 px-3 text-xs font-black text-zinc-300">編集</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {topPrompts.length > 0 && (
+              <div className="mt-5 rounded-2xl bg-zinc-900 p-4">
+                <h2 className="text-sm font-black">今月の相棒プロンプト</h2>
+                <div className="mt-3 space-y-2">
+                  {topPrompts.map(({ prompt, count }, index) => (
+                    <div key={prompt.id} className="flex items-center gap-3 text-sm">
+                      <span>{index + 1}位</span><span className="text-xl">{prompt.emoji}</span><span className="min-w-0 flex-1 truncate font-bold">{prompt.shortTitle}</span><span className="text-zinc-500">{count}回</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-5 rounded-2xl bg-zinc-900 p-4">
+              <h2 className="text-sm font-black">表示テーマ</h2>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {(["auto", "dark", "light"] as ThemeMode[]).map((mode) => (
+                  <button key={mode} type="button" onClick={() => setTheme(mode)} className={`min-h-11 rounded-xl text-sm font-bold ${prefs.theme === mode ? "bg-reds-500 text-white" : "bg-zinc-800 text-zinc-400"}`}>
+                    {mode === "auto" ? "自動" : mode === "dark" ? "黒" : "白"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <input ref={importInputRef} type="file" accept="application/json,.json" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) void importData(file); }} />
+            <button type="button" onClick={exportData} className="mt-5 min-h-12 w-full rounded-2xl bg-zinc-900 px-4 text-left text-sm font-bold">データをエクスポート</button>
+            <button type="button" onClick={() => importInputRef.current?.click()} className="mt-3 min-h-12 w-full rounded-2xl bg-zinc-900 px-4 text-left text-sm font-bold">バックアップをインポート</button>
+            <button type="button" onClick={() => { if (window.confirm("自作プロンプトを含む個人データを削除しますか？")) clearPersonalData(); }} className="mt-3 min-h-12 w-full rounded-2xl border border-zinc-800 px-4 text-left text-sm font-bold text-zinc-400">個人データを削除</button>
+          </section>
+        )}
       </main>
-      <nav aria-label="メインナビゲーション" className="safe-bottom fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-[430px] border-t border-zinc-800 bg-zinc-950/95 px-2 pt-2 backdrop-blur"><div className="grid grid-cols-4">{navItems.map((item) => <button key={item.id} type="button" onClick={() => setTab(item.id)} aria-current={tab === item.id ? "page" : undefined} className={`min-h-14 rounded-xl px-1 py-1 text-xs font-semibold ${tab === item.id ? "bg-reds-500 text-white" : "text-zinc-500"}`}><span className="block text-lg" aria-hidden="true">{item.emoji}</span><span>{item.label}</span></button>)}</div></nav>
+
+      <nav aria-label="メインナビゲーション" className="safe-bottom fixed inset-x-0 bottom-0 z-20 mx-auto w-full max-w-[430px] border-t border-zinc-800 bg-zinc-950/95 px-2 pt-2 backdrop-blur">
+        <div className="grid grid-cols-4">
+          {navItems.map((item) => (
+            <button key={item.id} type="button" onClick={() => setTab(item.id)} aria-current={tab === item.id ? "page" : undefined} className={`min-h-14 rounded-xl px-1 py-1 text-xs font-semibold ${tab === item.id ? "bg-reds-500 text-white" : "text-zinc-500"}`}>
+              <span className="block text-lg" aria-hidden="true">{item.emoji}</span><span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
       {toast && <div role="status" className="toast-position fixed left-1/2 z-50 -translate-x-1/2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-black text-zinc-950 shadow-xl">{toast}</div>}
     </div>
   );
