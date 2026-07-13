@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Prompt } from "../schema/catalog";
 
 export type ThemeMode = "auto" | "light" | "dark";
 export type AiTarget = "chatgpt" | "claude";
@@ -21,6 +22,7 @@ export interface PersonalSnapshot {
   history: UsageEntry[];
   lastSettings: Record<string, PromptSettings>;
   recentQueries: string[];
+  localPrompts: Prompt[];
   prefs: {
     theme: ThemeMode;
     lastAi: AiTarget;
@@ -32,6 +34,8 @@ interface AppStore extends PersonalSnapshot {
   recordCopy: (promptId: string, settings: PromptSettings) => void;
   saveSettings: (promptId: string, settings: PromptSettings) => void;
   addRecentQuery: (query: string) => void;
+  upsertLocalPrompt: (prompt: Prompt) => void;
+  deleteLocalPrompt: (id: string) => void;
   setTheme: (theme: ThemeMode) => void;
   setLastAi: (target: AiTarget) => void;
   replacePersonalData: (snapshot: PersonalSnapshot) => void;
@@ -45,6 +49,7 @@ export const createDefaultSnapshot = (): PersonalSnapshot => ({
   history: [],
   lastSettings: {},
   recentQueries: [],
+  localPrompts: [],
   prefs: { theme: "auto", lastAi: "chatgpt" }
 });
 
@@ -56,6 +61,7 @@ export function selectPersonalSnapshot(state: AppStore): PersonalSnapshot {
     history: state.history,
     lastSettings: state.lastSettings,
     recentQueries: state.recentQueries,
+    localPrompts: state.localPrompts,
     prefs: state.prefs
   };
 }
@@ -101,6 +107,18 @@ export const useAppStore = create<AppStore>()(
           ].slice(0, 8)
         }));
       },
+      upsertLocalPrompt: (prompt) =>
+        set((state) => ({
+          localPrompts: [prompt, ...state.localPrompts.filter((item) => item.id !== prompt.id)]
+        })),
+      deleteLocalPrompt: (id) =>
+        set((state) => ({
+          localPrompts: state.localPrompts.filter((prompt) => prompt.id !== id),
+          favorites: state.favorites.filter((promptId) => promptId !== id),
+          history: state.history.filter((entry) => entry.promptId !== id),
+          lastSettings: Object.fromEntries(Object.entries(state.lastSettings).filter(([promptId]) => promptId !== id)),
+          usage: Object.fromEntries(Object.entries(state.usage).filter(([promptId]) => promptId !== id))
+        })),
       setTheme: (theme) => set((state) => ({ prefs: { ...state.prefs, theme } })),
       setLastAi: (lastAi) => set((state) => ({ prefs: { ...state.prefs, lastAi } })),
       replacePersonalData: (snapshot) => set(snapshot),
