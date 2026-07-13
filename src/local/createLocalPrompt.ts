@@ -18,7 +18,11 @@ function compact(value: string, fallback: string): string {
 }
 
 function uniquePhrases(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length >= 2))].slice(0, 10);
+  return [...new Set(
+    values
+      .map((value) => value.trim().slice(0, 80))
+      .filter((value) => value.length >= 2)
+  )].slice(0, 10);
 }
 
 export function createLocalPromptId(now = Date.now(), random = Math.random()): string {
@@ -46,7 +50,7 @@ export function buildLocalPrompt(
     `${summary}に使う`,
     `自分用の${title}`
   ]);
-  while (searchPhrases.length < 5) searchPhrases.push(`${title}${searchPhrases.length + 1}`);
+  while (searchPhrases.length < 5) searchPhrases.push(`${title}${searchPhrases.length + 1}`.slice(0, 80));
 
   const inputBlock = needsInput ? `\n\n## ${inputLabel}\n{{targetText}}` : "";
 
@@ -72,7 +76,7 @@ export function buildLocalPrompt(
       : [],
     optionalInputs: [],
     promptTemplate: `${instruction}${inputBlock}\n\n## 出力\n- 依頼された成果物から始め、不要な前置きは入れないでください。`,
-    compatibleModifiers,
+    compatibleModifiers: compatibleModifiers.slice(0, 20),
     relatedIds: [],
     mobilePriority: 4,
     updatedAt
