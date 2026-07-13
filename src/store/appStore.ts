@@ -1,43 +1,115 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-interface Preferences {
-  theme: "auto" | "light" | "dark";
+export type ThemeMode = "auto" | "light" | "dark";
+export type AiTarget = "chatgpt" | "claude";
+
+export interface PromptSettings {
+  modifiers: string[];
+  optionalValues: Record<string, string>;
 }
 
-interface AppState {
+export interface UsageEntry extends PromptSettings {
+  promptId: string;
+  copiedAt: string;
+}
+
+export interface PersonalSnapshot {
   schemaVersion: 1;
+  usage: Record<string, { copyCount: number; lastCopiedAt: string }>;
   favorites: string[];
+  history: UsageEntry[];
+  lastSettings: Record<string, PromptSettings>;
   recentQueries: string[];
-  prefs: Preferences;
-  toggleFavorite: (id: string) => void;
-  setTheme: (theme: Preferences["theme"]) => void;
+  prefs: {
+    theme: ThemeMode;
+    lastAi: AiTarget;
+  };
 }
 
-export const useAppStore = create<AppState>()(
+interface AppStore extends PersonalSnapshot {
+  toggleFavorite: (id: string) => void;
+  recordCopy: (promptId: string, settings: PromptSettings) => void;
+  saveSettings: (promptId: string, settings: PromptSettings) => void;
+  addRecentQuery: (query: string) => void;
+  setTheme: (theme: ThemeMode) => void;
+  setLastAi: (target: AiTarget) => void;
+  replacePersonalData: (snapshot: PersonalSnapshot) => void;
+  clearPersonalData: () => void;
+}
+
+export const createDefaultSnapshot = (): PersonalSnapshot => ({
+  schemaVersion: 1,
+  usage: {},
+  favorites: [],
+  history: [],
+  lastSettings: {},
+  recentQueries: [],
+  prefs: { theme: "auto", lastAi: "chatgpt" }
+});
+
+export function selectPersonalSnapshot(state: AppStore): PersonalSnapshot {
+  return {
+    schemaVersion: 1,
+    usage: state.usage,
+    favorites: state.favorites,
+    history: state.history,
+    lastSettings: state.lastSettings,
+    recentQueries: state.recentQueries,
+    prefs: state.prefs
+  };
+}
+
+export const useAppStore = create<AppStore>()(
   persist(
     (set) => ({
-      schemaVersion: 1,
-      favorites: [],
-      recentQueries: [],
-      prefs: { theme: "auto" },
+      ...createDefaultSnapshot(),
       toggleFavorite: (id) =>
         set((state) => ({
           favorites: state.favorites.includes(id)
             ? state.favorites.filter((favoriteId) => favoriteId !== id)
-            : [...state.favorites, id]
+            : [id, ...state.favorites]
         })),
-      setTheme: (theme) => set((state) => ({ prefs: { ...state.prefs, theme } }))
+      recordCopy: (promptId, settings) => {
+        const copiedAt = new Date().toISOString();
+        set((state) => ({
+          usage: {
+            ...state.usage,
+            [promptId]: {
+              copyCount: (state.usage[promptId]?.copyCount ?? 0) + 1,
+              lastCopiedAt: copiedAt
+            }
+          },
+          history: [
+            { promptId, copiedAt, ...settings },
+            ...state.history
+          ].slice(0, 50),
+          lastSettings: { ...state.lastSettings, [promptId]: settings }
+        }));
+      },
+      saveSettings: (promptId, settings) =>
+        set((state) => ({
+          lastSettings: { ...state.lastSettings, [promptId]: settings }
+        })),
+      addRecentQuery: (query) => {
+        const normalized = query.trim();
+        if (!normalized) return;
+        set((state) => ({
+          recentQueries: [
+            normalized,
+            ...state.recentQueries.filter((item) => item !== normalized)
+          ].slice(0, 8)
+        }));
+      },
+      setTheme: (theme) => set((state) => ({ prefs: { ...state.prefs, theme } })),
+      setLastAi: (lastAi) => set((state) => ({ prefs: { ...state.prefs, lastAi } })),
+      replacePersonalData: (snapshot) => set(snapshot),
+      clearPersonalData: () => set(createDefaultSnapshot())
     }),
     {
-      name: "prompt-launcher-v1",
+      name: "prompt-launcher-personal",
       version: 1,
-      partialize: (state) => ({
-        schemaVersion: state.schemaVersion,
-        favorites: state.favorites,
-        recentQueries: state.recentQueries,
-        prefs: state.prefs
-      })
+      partialize: selectPersonalSnapshot
     }
   )
 );
