@@ -1,10 +1,22 @@
 import { useMemo, useRef, useState } from "react";
 import type { Catalog, Prompt } from "../schema/catalog";
-import { buildLocalPrompt, githubNewFileUrl, type LocalPromptDraft } from "../local/createLocalPrompt";
+import {
+  buildLocalPrompt,
+  createLocalPromptId,
+  githubNewFileUrl,
+  promptToLocalDraft,
+  type LocalPromptDraft
+} from "../local/createLocalPrompt";
+import { findPotentialDuplicates } from "../local/duplicates";
+
+export type LocalPromptWizardMode = "create" | "edit" | "duplicate";
 
 interface LocalPromptWizardProps {
   catalog: Catalog;
+  existingPrompts: Prompt[];
   initialQuery?: string;
+  initialPrompt?: Prompt;
+  mode?: LocalPromptWizardMode;
   onCancel: () => void;
   onSave: (prompt: Prompt) => void;
 }
@@ -20,26 +32,61 @@ const inputChoices = [
   ["none", "材料なし"]
 ] as const;
 
-export function LocalPromptWizard({ catalog, initialQuery = "", onCancel, onSave }: LocalPromptWizardProps) {
-  const stableId = useRef(`local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`);
+function duplicateTitle(title: string): string {
+  const base = title.replace(/（コピー）$/, "");
+  return `${base.slice(0, 54)}（コピー）`;
+}
+
+export function LocalPromptWizard({
+  catalog,
+  existingPrompts,
+  initialQuery = "",
+  initialPrompt,
+  mode = initialPrompt ? "edit" : "create",
+  onCancel,
+  onSave
+}: LocalPromptWizardProps) {
+  const stableId = useRef(mode === "edit" && initialPrompt ? initialPrompt.id : createLocalPromptId());
   const [step, setStep] = useState(1);
   const [message, setMessage] = useState("");
-  const [draft, setDraft] = useState<LocalPromptDraft>({
-    title: initialQuery.slice(0, 60),
-    emoji: "🧰",
-    summary: initialQuery,
-    instruction: "",
-    category: catalog.dictionaries.categories[0]?.slug ?? "writing",
-    intent: catalog.dictionaries.intents[0]?.slug ?? "create",
-    inputType: "text",
-    inputLabel: "対象の内容",
-    searchWords: initialQuery
+  const [draft, setDraft] = useState<LocalPromptDraft>(() => {
+    if (initialPrompt) {
+      const converted = promptToLocalDraft(initialPrompt);
+      return mode === "duplicate" ? { ...converted, title: duplicateTitle(converted.title) } : converted;
+    }
+    return {
+      title: initialQuery.slice(0, 60),
+      emoji: "🧰",
+      summary: initialQuery,
+      instruction: "",
+      category: catalog.dictionaries.categories[0]?.slug ?? "writing",
+      intent: catalog.dictionaries.intents[0]?.slug ?? "create",
+      inputType: "text",
+      inputLabel: "対象の内容",
+      searchWords: initialQuery
+    };
   });
 
   const prompt = useMemo(
     () => buildLocalPrompt(draft, catalog.modifiers.map((modifier) => modifier.id), stableId.current),
     [catalog.modifiers, draft]
   );
+  const duplicates = useMemo(
+    () => findPotentialDuplicates(prompt, existingPrompts, {
+      synonyms: catalog.dictionaries.synonyms,
+      excludeIds: mode === "edit" ? [prompt.id] : [],
+      threshold: 0.5,
+      limit: 3
+    }),
+    [catalog.dictionaries.synonyms, existingPrompts, mode, prompt]
+  );
+
+  const heading = mode === "edit"
+    ? "自分用プロンプトを編集"
+    : mode === "duplicate"
+      ? "プロンプトを複製"
+      : "自分用プロンプトを追加";
+  const saveLabel = mode === "edit" ? "更新して使う" : mode === "duplicate" ? "複製して使う" : "保存して使う";
 
   function update<K extends keyof LocalPromptDraft>(key: K, value: LocalPromptDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -86,7 +133,7 @@ export function LocalPromptWizard({ catalog, initialQuery = "", onCancel, onSave
           <button type="button" onClick={onCancel} className="min-h-11 rounded-xl px-2 text-sm font-bold text-zinc-300">← 閉じる</button>
           <span className="text-xs font-black text-zinc-500">{step} / 3</span>
         </div>
-        <h1 className="text-xl font-black">自分用プロンプトを追加</h1>
+        <h1 className="text-xl font-black">{heading}</h1>
         <div className="mt-3 grid grid-cols-3 gap-2" aria-label="入力ステップ">
           {[1, 2, 3].map((item) => <span key={item} className={`h-1.5 rounded-full ${item <= step ? "bg-reds-500" : "bg-zinc-800"}`} />)}
         </div>
@@ -151,12 +198,33 @@ export function LocalPromptWizard({ catalog, initialQuery = "", onCancel, onSave
             <div>
               <p className="text-xs font-black uppercase tracking-[0.16em] text-reds-500">Step 3</p>
               <h2 className="mt-1 text-lg font-black">検索しやすくして保存</h2>
-              <p className="mt-1 text-sm leading-6 text-zinc-400">まず端末内だけに保存されます。使い込んでからGitHubへ正式登録できます。</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-400">似た道具を確認してから、端末内へ保存します。</p>
             </div>
             <label className="block text-sm font-bold text-zinc-300">検索しそうな言葉
               <textarea value={draft.searchWords} onChange={(event) => update("searchWords", event.target.value)} placeholder="企画を厳しく見る、弱点、リスク" rows={3} className="mt-2 w-full rounded-2xl border border-zinc-700 bg-zinc-900 p-4 text-base leading-7 text-white placeholder:text-zinc-600" />
               <span className="mt-1 block text-xs leading-5 text-zinc-500">読点・カンマ・改行で区切れます。不足分は名前と用途から自動生成します。</span>
             </label>
+
+            {duplicates.length > 0 && (
+              <section className={`rounded-3xl border p-4 ${duplicates[0].score >= 0.8 ? "border-amber-400 bg-amber-500/10" : "border-zinc-700 bg-zinc-900"}`} aria-labelledby="duplicate-title">
+                <h3 id="duplicate-title" className="font-black">似ているプロンプトがあります</h3>
+                <p className="mt-1 text-xs leading-5 text-zinc-400">用途が同じなら既存の編集、違うなら差分が名前に出るようにすると探しやすくなります。</p>
+                <div className="mt-3 space-y-2">
+                  {duplicates.map((match) => (
+                    <div key={match.prompt.id} className="rounded-2xl bg-zinc-950/70 p-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl">{match.prompt.emoji}</span>
+                        <div className="min-w-0 flex-1">
+                          <strong className="block text-sm">{match.prompt.title}</strong>
+                          <span className="mt-1 block text-xs text-zinc-500">近さ {Math.round(match.score * 100)}% ・ {match.reasons.join("・")}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
             <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-4">
               <div className="flex items-start gap-3">
                 <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-zinc-800 text-2xl">{prompt.emoji}</span>
@@ -175,7 +243,7 @@ export function LocalPromptWizard({ catalog, initialQuery = "", onCancel, onSave
       <div className="safe-bottom fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-[430px] border-t border-zinc-800 bg-zinc-950/95 p-3 backdrop-blur">
         <div className="grid grid-cols-2 gap-2">
           <button type="button" onClick={() => step === 1 ? onCancel() : setStep((current) => current - 1)} className="min-h-14 rounded-2xl border border-zinc-700 text-sm font-black text-zinc-300">{step === 1 ? "キャンセル" : "戻る"}</button>
-          {step < 3 ? <button type="button" onClick={next} className="min-h-14 rounded-2xl bg-reds-500 text-sm font-black text-white">次へ</button> : <button type="button" onClick={saveAndUse} className="min-h-14 rounded-2xl bg-reds-500 text-sm font-black text-white">保存して使う</button>}
+          {step < 3 ? <button type="button" onClick={next} className="min-h-14 rounded-2xl bg-reds-500 text-sm font-black text-white">次へ</button> : <button type="button" onClick={saveAndUse} className="min-h-14 rounded-2xl bg-reds-500 text-sm font-black text-white">{saveLabel}</button>}
         </div>
       </div>
     </div>
