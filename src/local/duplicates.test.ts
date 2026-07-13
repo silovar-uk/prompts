@@ -68,7 +68,19 @@ describe("prompt duplicate detection", () => {
   it("自作プロンプトを含む組み合わせだけ一覧化できる", () => {
     const local = makePrompt();
     const close = makePrompt({ id: "planning-001" });
-    const unrelated = makePrompt({ id: "writing-001", title: "文章を短くする", summary: "文章の重複を削る" });
+    const unrelated = makePrompt({
+      id: "writing-001",
+      title: "文章を短くする",
+      shortTitle: "文章を短く",
+      problem: "長い文章から重複表現を削る",
+      summary: "長い文章から重複表現を削る",
+      category: "writing",
+      intents: ["arrange"],
+      inputTypes: ["text"],
+      searchPhrases: ["文章を短くする", "重複を削る", "長文を縮める", "簡潔にする", "文章を整える"],
+      requiredInputs: [{ id: "targetText", label: "文章", type: "textarea" }],
+      promptTemplate: "意味を変えずに、文章の重複と冗長表現を削ってください。\n\n## 文章\n{{targetText}}"
+    });
     const pairs = findDuplicatePairs([local, close, unrelated], {
       requireIds: new Set([local.id]),
       threshold: 0.6
