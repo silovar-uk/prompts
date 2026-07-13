@@ -29,6 +29,30 @@ export function createLocalPromptId(now = Date.now(), random = Math.random()): s
   return `local-${now.toString(36)}-${Math.floor(random * 1679616).toString(36).padStart(4, "0")}`;
 }
 
+export function promptToLocalDraft(prompt: Prompt): LocalPromptDraft {
+  const requiredInput = prompt.requiredInputs[0];
+  let instruction = prompt.promptTemplate;
+  const outputMarker = "\n\n## 出力";
+  const outputIndex = instruction.lastIndexOf(outputMarker);
+  if (outputIndex >= 0) instruction = instruction.slice(0, outputIndex);
+  if (requiredInput) {
+    const inputBlock = `\n\n## ${requiredInput.label}\n{{${requiredInput.id}}}`;
+    instruction = instruction.replace(inputBlock, "");
+  }
+
+  return {
+    title: prompt.title,
+    emoji: prompt.emoji,
+    summary: prompt.summary,
+    instruction: instruction.trim(),
+    category: prompt.category,
+    intent: prompt.intents[0] ?? "create",
+    inputType: prompt.inputTypes[0] ?? "text",
+    inputLabel: requiredInput?.label ?? "対象の内容",
+    searchWords: prompt.searchPhrases.join("、")
+  };
+}
+
 export function buildLocalPrompt(
   draft: LocalPromptDraft,
   compatibleModifiers: string[],
