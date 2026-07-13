@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { buildLocalPrompt } from "./local/createLocalPrompt";
 import { useAppStore } from "./store/appStore";
 
 const catalog = {
@@ -58,6 +59,20 @@ const catalog = {
     ]
   }
 };
+
+function makeLocalPrompt() {
+  return buildLocalPrompt({
+    title: "企画の弱点を洗い出す",
+    emoji: "🔥",
+    summary: "企画メモから問題点を探す",
+    instruction: "前提を疑い、問題点と根拠と改善案を出してください。",
+    category: "planning",
+    intent: "inspect",
+    inputType: "memo",
+    inputLabel: "企画メモ",
+    searchWords: "企画の弱点、リスク、厳しく見る"
+  }, ["mod-critical"], "local-edit-test", "2026-07-14");
+}
 
 describe("App", () => {
   beforeEach(() => {
@@ -117,5 +132,44 @@ describe("App", () => {
 
     expect(await screen.findByRole("heading", { name: "企画の弱点を洗い出す" })).toBeVisible();
     expect(useAppStore.getState().localPrompts).toHaveLength(1);
+  });
+
+  it("自作プロンプトを同じIDのまま編集できる", async () => {
+    const original = makeLocalPrompt();
+    useAppStore.getState().upsertLocalPrompt(original);
+    render(<App />);
+    await screen.findByText("内容を変えずに文章を短くする");
+    fireEvent.click(screen.getByRole("button", { name: "設定" }));
+    fireEvent.click(screen.getByRole("button", { name: "編集" }));
+
+    expect(screen.getByRole("heading", { name: "自分用プロンプトを編集" })).toBeVisible();
+    fireEvent.change(screen.getByLabelText("名前"), { target: { value: "企画の弱点と優先順位を整理する" } });
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "更新して使う" }));
+
+    const saved = useAppStore.getState().localPrompts;
+    expect(saved).toHaveLength(1);
+    expect(saved[0].id).toBe(original.id);
+    expect(saved[0].title).toBe("企画の弱点と優先順位を整理する");
+  });
+
+  it("自作プロンプトを別IDで複製できる", async () => {
+    const original = makeLocalPrompt();
+    useAppStore.getState().upsertLocalPrompt(original);
+    render(<App />);
+    await screen.findByText("内容を変えずに文章を短くする");
+    fireEvent.click(screen.getByRole("button", { name: "設定" }));
+    fireEvent.click(screen.getByRole("button", { name: "複製" }));
+
+    expect(screen.getByRole("heading", { name: "プロンプトを複製" })).toBeVisible();
+    expect(screen.getByLabelText("名前")).toHaveValue("企画の弱点を洗い出す（コピー）");
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "複製して使う" }));
+
+    const saved = useAppStore.getState().localPrompts;
+    expect(saved).toHaveLength(2);
+    expect(new Set(saved.map((prompt) => prompt.id)).size).toBe(2);
   });
 });
