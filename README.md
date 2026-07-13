@@ -1,3 +1,3 @@
 # Prompt Launcher
 
-Initial repository setup. Full Phase 0 implementation follows in the next commit.
+Phase 0 source is being expanded by GitHub Actions.
