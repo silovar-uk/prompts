@@ -47,8 +47,15 @@ const catalog = {
   ],
   dictionaries: {
     synonyms: { "短くする": ["短く", "縮める"] },
-    intents: [{ slug: "arrange", label: "整える", order: 1 }],
-    categories: [{ slug: "writing", label: "文章", color: "#E6002D" }]
+    intents: [
+      { slug: "arrange", label: "整える", order: 1 },
+      { slug: "create", label: "作る", order: 2 },
+      { slug: "inspect", label: "点検する", order: 3 }
+    ],
+    categories: [
+      { slug: "writing", label: "文章", color: "#E6002D" },
+      { slug: "planning", label: "企画", color: "#2E9B55" }
+    ]
   }
 };
 
@@ -92,5 +99,23 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { name: "コピー完了。どこで使う？" })).toBeVisible();
     expect(screen.getByRole("button", { name: "🟢 ChatGPTで開く" })).toBeVisible();
     expect(screen.getByRole("button", { name: "🟠 Claudeで開く" })).toBeVisible();
+  });
+
+  it("ウィザードから端末内プロンプトを追加してそのまま使える", async () => {
+    render(<App />);
+    await screen.findByText("内容を変えずに文章を短くする");
+    fireEvent.click(screen.getByRole("button", { name: "設定" }));
+    fireEvent.click(screen.getByRole("button", { name: "＋ 自分用プロンプトを追加" }));
+
+    fireEvent.change(screen.getByLabelText("名前"), { target: { value: "企画の弱点を洗い出す" } });
+    fireEvent.change(screen.getByLabelText("何に使う？"), { target: { value: "企画メモから問題点を探す" } });
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+
+    fireEvent.change(screen.getByLabelText("AIへの指示"), { target: { value: "前提を疑い、問題点と根拠と改善案を出してください。" } });
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "保存して使う" }));
+
+    expect(await screen.findByRole("heading", { name: "企画の弱点を洗い出す" })).toBeVisible();
+    expect(useAppStore.getState().localPrompts).toHaveLength(1);
   });
 });
