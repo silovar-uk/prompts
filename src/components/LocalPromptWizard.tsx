@@ -122,6 +122,18 @@ export function LocalPromptWizard({ catalog, initialQuery = "", onCancel, onSave
             <label className="block text-sm font-bold text-zinc-300">AIへの指示
               <textarea autoFocus value={draft.instruction} onChange={(event) => update("instruction", event.target.value)} placeholder="例：企画の前提を疑い、弱点と根拠を率直に指摘したうえで、実行可能な改善案を出してください。" rows={7} className="mt-2 w-full rounded-2xl border border-zinc-700 bg-zinc-900 p-4 text-base leading-7 text-white placeholder:text-zinc-600" />
             </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-sm font-bold text-zinc-300">カテゴリ
+                <select value={draft.category} onChange={(event) => update("category", event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-3 text-sm text-white">
+                  {catalog.dictionaries.categories.map((category) => <option key={category.slug} value={category.slug}>{category.label}</option>)}
+                </select>
+              </label>
+              <label className="block text-sm font-bold text-zinc-300">主な目的
+                <select value={draft.intent} onChange={(event) => update("intent", event.target.value)} className="mt-2 min-h-12 w-full rounded-2xl border border-zinc-700 bg-zinc-900 px-3 text-sm text-white">
+                  {[...catalog.dictionaries.intents].sort((a, b) => a.order - b.order).map((intent) => <option key={intent.slug} value={intent.slug}>{intent.label}</option>)}
+                </select>
+              </label>
+            </div>
             <fieldset>
               <legend className="text-sm font-bold text-zinc-300">手元にある材料</legend>
               <div className="mt-3 flex flex-wrap gap-2">
