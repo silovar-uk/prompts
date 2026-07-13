@@ -18,7 +18,7 @@ test("モバイル幅で検索からプロンプト使用画面まで進める",
   expect(overflow).toBe(false);
 });
 
-test("スマホから自分用プロンプトを追加して即座に使える", async ({ page }) => {
+test("スマホで自作プロンプトを追加・編集・複製できる", async ({ page }) => {
   await page.goto("./");
   await page.getByRole("button", { name: "設定" }).click();
   await page.getByRole("button", { name: "＋ 自分用プロンプトを追加" }).click();
@@ -31,7 +31,20 @@ test("スマホから自分用プロンプトを追加して即座に使える",
   await page.getByRole("button", { name: "保存して使う" }).click();
 
   await expect(page.getByRole("heading", { name: "企画の弱点を洗い出す" })).toBeVisible();
-  await expect(page.getByLabel("対象の内容")).toBeVisible();
+  await page.getByRole("button", { name: "✏️ 編集" }).click();
+  await page.getByLabel("名前").fill("企画の弱点と優先順位を整理する");
+  await page.getByRole("button", { name: "次へ" }).click();
+  await page.getByRole("button", { name: "次へ" }).click();
+  await page.getByRole("button", { name: "更新して使う" }).click();
+
+  await expect(page.getByRole("heading", { name: "企画の弱点と優先順位を整理する" })).toBeVisible();
+  await page.getByRole("button", { name: "⧉ 複製" }).click();
+  await expect(page.getByLabel("名前")).toHaveValue("企画の弱点と優先順位を整理する（コピー）");
+  await page.getByRole("button", { name: "次へ" }).click();
+  await page.getByRole("button", { name: "次へ" }).click();
+  await page.getByRole("button", { name: "複製して使う" }).click();
+
+  await expect(page.getByRole("heading", { name: "企画の弱点と優先順位を整理する（コピー）" })).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
 });
