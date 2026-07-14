@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">Prompt Launcher</title>
+  <desc id="desc">青いカードが重なったプロンプトランチャーのアイコン</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffdf7"/>
+      <stop offset="1" stop-color="#eee4d5"/>
+    </linearGradient>
+    <linearGradient id="blueBack" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2b80ef"/>
+      <stop offset="1" stop-color="#164eaa"/>
+    </linearGradient>
+    <linearGradient id="blueMid" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#65b2ff"/>
+      <stop offset="1" stop-color="#2d7dde"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffefa"/>
+      <stop offset="1" stop-color="#f2ecdf"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe98b"/>
+      <stop offset="0.48" stop-color="#ffc62e"/>
+      <stop offset="1" stop-color="#ef9a00"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="170%" height="190%">
+      <feDropShadow dx="0" dy="34" stdDeviation="34" flood-color="#1b2f62" flood-opacity=".24"/>
+    </filter>
+    <filter id="smallShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#714b00" flood-opacity=".25"/>
+    </filter>
+  </defs>
+  <rect x="18" y="18" width="988" height="988" rx="230" fill="url(#bg)"/>
+  <rect x="35" y="35" width="954" height="954" rx="215" fill="none" stroke="#d8cdbd" stroke-width="10" opacity=".55"/>
+  <g filter="url(#shadow)" stroke="#172347" stroke-width="30" stroke-linejoin="round">
+    <rect x="178" y="340" width="560" height="388" rx="62" fill="url(#blueBack)" transform="rotate(-6 178 340)"/>
+    <rect x="230" y="274" width="570" height="410" rx="62" fill="url(#blueMid)" transform="rotate(-2 230 274)"/>
+    <rect x="286" y="216" width="590" height="430" rx="64" fill="url(#paper)"/>
+  </g>
+  <g fill="#2b80ef">
+    <rect x="370" y="312" width="330" height="54" rx="27"/>
+    <rect x="370" y="398" width="220" height="54" rx="27"/>
+    <rect x="650" y="540" width="132" height="44" rx="22"/>
+  </g>
+  <path d="M414 500l72 68-72 68" fill="none" stroke="#172347" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  <g filter="url(#smallShadow)">
+    <path d="M820 116c18 69 39 90 108 108-69 18-90 39-108 108-18-69-39-90-108-108 69-18 90-39 108-108Z" fill="url(#gold)" stroke="#f1a900" stroke-width="10" stroke-linejoin="round"/>
+  </g>
+</svg>
