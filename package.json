@@ -8,7 +8,7 @@
     "dev": "npm run catalog && vite",
     "catalog": "npm run generate:core && tsx scripts/build-catalog.ts",
     "validate:data": "npm run generate:core && tsx scripts/build-catalog.ts --check",
-    "test:search": "tsx scripts/evaluate-search.ts",
+    "test:search": "tsx scripts/generate-search-eval.ts && tsx scripts/evaluate-search.ts",
     "new:prompt": "tsx scripts/new-prompt.ts",
     "test": "vitest run",
     "test:watch": "vitest",
