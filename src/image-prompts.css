@@ -1,0 +1,45 @@
+.lf-intent-strip .lf-image-filter {
+  color: #3555a4;
+  border-color: color-mix(in srgb, #4b71d8 34%, var(--lf-line));
+  background: color-mix(in srgb, #e8edff 72%, var(--lf-surface));
+}
+
+.lf-intent-strip .lf-image-filter.active {
+  color: #fff;
+  border-color: #4b71d8;
+  background: #4b71d8;
+}
+
+html[data-theme="dark"] .lf-intent-strip .lf-image-filter {
+  color: #c8d5ff;
+  background: color-mix(in srgb, #263d78 70%, var(--lf-surface));
+}
+
+html[data-theme="dark"] .lf-intent-strip .lf-image-filter.active {
+  color: #fff;
+  background: #6285e9;
+}
+
+.lf-prompt-row.is-image .lf-row-icon {
+  color: #243d86;
+  background: linear-gradient(145deg, #eef1ff, #dde6ff);
+}
+
+html[data-theme="dark"] .lf-prompt-row.is-image .lf-row-icon {
+  color: #f2f5ff;
+  background: linear-gradient(145deg, #283d76, #1c2e59);
+}
+
+.lf-library-tabs button:nth-child(2).active {
+  color: #3555a4;
+  border-color: color-mix(in srgb, #4b71d8 55%, var(--lf-line));
+  background: color-mix(in srgb, #e8edff 82%, var(--lf-surface));
+}
+
+@media (max-width: 360px) {
+  .lf-intent-strip .lf-image-filter {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+  }
+}
