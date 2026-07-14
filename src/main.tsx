@@ -1,7 +1,8 @@
 import ReactDOM from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
-import ProductApp from "./ProductApp";
+import LibraryFirstApp from "./LibraryFirstApp";
 import "./index.css";
+import "./library-first.css";
 
 let triggerServiceWorkerUpdate: ReturnType<typeof registerSW> | undefined;
 triggerServiceWorkerUpdate = registerSW({
@@ -15,4 +16,4 @@ triggerServiceWorkerUpdate = registerSW({
   }
 });
 
-ReactDOM.createRoot(document.getElementById("root")!).render(<ProductApp />);
+ReactDOM.createRoot(document.getElementById("root")!).render(<LibraryFirstApp />);
