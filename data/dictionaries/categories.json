@@ -1,5 +1,11 @@
 [
-  { "slug": "writing", "label": "文章", "color": "#E6002D" },
-  { "slug": "meeting", "label": "会議", "color": "#F5C400" },
-  { "slug": "planning", "label": "企画", "color": "#2E9B55" }
+  { "slug": "writing", "label": "文章・リライト", "color": "#2563EB" },
+  { "slug": "meeting", "label": "会議・議事録", "color": "#D59B16" },
+  { "slug": "planning", "label": "企画・思考", "color": "#0F766E" },
+  { "slug": "research", "label": "調査・比較", "color": "#7C3AED" },
+  { "slug": "pr", "label": "広報・PR", "color": "#DB2777" },
+  { "slug": "data", "label": "データ整理", "color": "#0891B2" },
+  { "slug": "web", "label": "Web・コード", "color": "#334155" },
+  { "slug": "visual", "label": "資料・画像", "color": "#EA580C" },
+  { "slug": "learning", "label": "学習・解説", "color": "#65A30D" }
 ]
