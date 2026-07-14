@@ -8,8 +8,9 @@ export function katakanaToHiragana(value: string): string {
   );
 }
 
-export function normalizeText(value: string, synonyms: SynonymDictionary = {}): string {
-  let normalized = katakanaToHiragana(value.normalize("NFKC").toLowerCase())
+export function normalizeText(value: string | null | undefined, synonyms: SynonymDictionary = {}): string {
+  const source = value ?? "";
+  let normalized = katakanaToHiragana(source.normalize("NFKC").toLowerCase())
     .replace(/[\s\p{P}\p{S}]+/gu, "")
     .trim();
 
