@@ -3,10 +3,11 @@ import { registerSW } from "virtual:pwa-register";
 import ProductApp from "./ProductApp";
 import "./index.css";
 
-const updateSW = registerSW({
+let triggerServiceWorkerUpdate: ReturnType<typeof registerSW> | undefined;
+triggerServiceWorkerUpdate = registerSW({
   immediate: true,
   onNeedRefresh() {
-    void updateSW(true);
+    void triggerServiceWorkerUpdate?.(true);
   },
   onRegisteredSW(_swUrl, registration) {
     void registration?.update();
