@@ -3,6 +3,7 @@ import { registerSW } from "virtual:pwa-register";
 import LibraryFirstApp from "./LibraryFirstApp";
 import "./index.css";
 import "./library-first.css";
+import "./image-prompts.css";
 
 let triggerServiceWorkerUpdate: ReturnType<typeof registerSW> | undefined;
 triggerServiceWorkerUpdate = registerSW({
