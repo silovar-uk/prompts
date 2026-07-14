@@ -64,8 +64,8 @@ export function scorePrompt(
   const fields: Array<[string, number]> = [
     [prompt.searchPhrases.join(" "), 3],
     [prompt.title, 2.5],
-    [`${prompt.problem} ${prompt.summary}`, 1.5],
-    [prompt.tags.join(" "), 1]
+    [`${prompt.problem ?? ""} ${prompt.summary ?? ""}`, 1.5],
+    [(prompt.tags ?? []).join(" "), 1]
   ];
 
   const weighted = fields.reduce((total, [field, weight]) => {
@@ -85,11 +85,12 @@ export function scorePrompt(
       ? 0.1
       : 0;
 
-  return (weighted / weightTotal) * 0.72
+  const relevance = (weighted / weightTotal) * 0.72
     + phraseExactBonus
     + phraseContainmentBonus
-    + titleBonus
-    + prompt.mobilePriority * 0.01;
+    + titleBonus;
+
+  return relevance > 0 ? relevance + prompt.mobilePriority * 0.01 : 0;
 }
 
 export function searchPrompts(
@@ -100,6 +101,7 @@ export function searchPrompts(
 ): Prompt[] {
   return prompts
     .map((prompt) => ({ prompt, score: scorePrompt(query, prompt, synonyms) }))
+    .filter(({ score }) => score > 0)
     .sort((left, right) => right.score - left.score || right.prompt.mobilePriority - left.prompt.mobilePriority)
     .slice(0, limit)
     .map(({ prompt }) => prompt);
