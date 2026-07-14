@@ -90,14 +90,14 @@ describe("ProductApp", () => {
     expect(screen.getByRole("heading", { name: "この材料に合う3つ" })).toBeVisible();
     fireEvent.click(screen.getAllByRole("button", { name: "この道具を使う" })[0]);
     expect(screen.getByRole("heading", { name: prompt.title })).toBeVisible();
-    expect(screen.getByLabelText("会議メモ")).toHaveValue("会議で決定事項を確認。担当は田中、期限は金曜日。");
+    expect(screen.getByLabelText(/会議メモ/)).toHaveValue("会議で決定事項を確認。担当は田中、期限は金曜日。");
   });
 
   it("使用画面からコピー完了まで進める", async () => {
     render(<ProductApp />);
     await screen.findByText(prompt.title);
     fireEvent.click(screen.getAllByRole("button", { name: "この道具を使う" })[0]);
-    fireEvent.change(screen.getByLabelText("会議メモ"), { target: { value: "決定事項があります。" } });
+    fireEvent.change(screen.getByLabelText(/会議メモ/), { target: { value: "決定事項があります。" } });
     fireEvent.click(screen.getByRole("button", { name: "プロンプトをコピー" }));
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled());
     expect(screen.getByRole("heading", { name: "コピー完了。どこで使う？" })).toBeVisible();
