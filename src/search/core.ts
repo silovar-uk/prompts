@@ -56,6 +56,10 @@ export function scorePrompt(
   const query = normalizeText(rawQuery, synonyms);
   if (!query) return prompt.mobilePriority / 100;
 
+  const normalizedPhrases = prompt.searchPhrases.map((phrase) => normalizeText(phrase, synonyms));
+  const normalizedTitle = normalizeText(prompt.title, synonyms);
+  const normalizedShortTitle = normalizeText(prompt.shortTitle, synonyms);
+
   const fields: Array<[string, number]> = [
     [prompt.searchPhrases.join(" "), 3],
     [prompt.title, 2.5],
@@ -67,14 +71,24 @@ export function scorePrompt(
     return total + overlapScore(query, normalizeText(field, synonyms)) * weight;
   }, 0);
   const weightTotal = fields.reduce((sum, [, weight]) => sum + weight, 0);
-  const normalizedFields = fields.map(([field]) => normalizeText(field, synonyms));
-  const exactBonus = normalizedFields.some((field) => field === query)
-    ? 0.15
-    : normalizedFields.some((field) => field.startsWith(query) || field.includes(query))
-      ? 0.08
+
+  const phraseExactBonus = normalizedPhrases.includes(query) ? 0.42 : 0;
+  const phraseContainmentBonus = phraseExactBonus
+    ? 0
+    : normalizedPhrases.some((phrase) => phrase.startsWith(query) || phrase.includes(query))
+      ? 0.16
+      : 0;
+  const titleBonus = normalizedTitle === query || normalizedShortTitle === query
+    ? 0.28
+    : normalizedTitle.includes(query) || normalizedShortTitle.includes(query)
+      ? 0.1
       : 0;
 
-  return (weighted / weightTotal) * 0.8 + exactBonus + prompt.mobilePriority * 0.01;
+  return (weighted / weightTotal) * 0.72
+    + phraseExactBonus
+    + phraseContainmentBonus
+    + titleBonus
+    + prompt.mobilePriority * 0.01;
 }
 
 export function searchPrompts(
@@ -85,7 +99,7 @@ export function searchPrompts(
 ): Prompt[] {
   return prompts
     .map((prompt) => ({ prompt, score: scorePrompt(query, prompt, synonyms) }))
-    .sort((a, b) => b.score - a.score || b.prompt.mobilePriority - a.prompt.mobilePriority)
+    .sort((left, right) => right.score - left.score || right.prompt.mobilePriority - left.prompt.mobilePriority)
     .slice(0, limit)
     .map(({ prompt }) => prompt);
 }
