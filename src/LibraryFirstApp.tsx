@@ -17,7 +17,7 @@ import {
 import { useLocalLifecycleStore } from "./store/localLifecycleStore";
 
 type Tab = "home" | "library" | "history" | "settings";
-type LibraryMode = "all" | "favorites" | "local";
+type LibraryMode = "all" | "favorites" | "image" | "local";
 type WizardState = { mode: LocalPromptWizardMode; source?: Prompt; query: string };
 
 type DetectedInput = {
@@ -68,6 +68,8 @@ const outputLabels: Record<string, string> = {
   "code-review": "コードレビュー",
   "slide-outline": "スライド構成",
   "image-prompt": "画像指示",
+  json: "JSON",
+  text: "テンプレート",
   lesson: "教材"
 };
 
@@ -188,6 +190,7 @@ export default function LibraryFirstApp() {
   const [tab, setTab] = useState<Tab>("home");
   const [query, setQuery] = useState("");
   const [intent, setIntent] = useState("");
+  const [imageOnly, setImageOnly] = useState(false);
   const [pasteText, setPasteText] = useState("");
   const [pasteRequested, setPasteRequested] = useState(false);
   const [libraryQuery, setLibraryQuery] = useState("");
@@ -256,6 +259,7 @@ export default function LibraryFirstApp() {
     return [...localPrompts, ...(catalog?.prompts.filter((prompt) => !localIds.has(prompt.id)) ?? [])];
   }, [catalog, localPrompts]);
   const localIds = useMemo(() => new Set(localPrompts.map((prompt) => prompt.id)), [localPrompts]);
+  const imageCount = useMemo(() => allPrompts.filter((prompt) => prompt.category === "image").length, [allPrompts]);
   const categoryMap = useMemo(() => new Map(catalog?.dictionaries.categories.map((category) => [category.slug, category]) ?? []), [catalog]);
   const modifierMap = useMemo(() => new Map(catalog?.modifiers.map((modifier) => [modifier.id, modifier]) ?? []), [catalog]);
   const detected = useMemo(() => detectInput(pasteText), [pasteText]);
@@ -263,7 +267,8 @@ export default function LibraryFirstApp() {
   const homeResults = useMemo(() => {
     if (!catalog) return [];
     const combinedQuery = [query.trim(), pasteRequested ? detected.terms.join(" ") : ""].filter(Boolean).join(" ");
-    return allPrompts
+    const source = imageOnly ? allPrompts.filter((prompt) => prompt.category === "image") : allPrompts;
+    return source
       .map((prompt) => {
         const base = combinedQuery ? scorePrompt(combinedQuery, prompt, catalog.dictionaries.synonyms) : 0;
         const typeBoost = pasteRequested && detected.type && prompt.inputTypes.includes(detected.type) ? 0.25 : 0;
@@ -272,20 +277,23 @@ export default function LibraryFirstApp() {
         const usageBoost = Math.min(0.16, Math.log2((usage[prompt.id]?.copyCount ?? 0) + 1) * 0.04);
         return { prompt, score: base + typeBoost + intentBoost + favoriteBoost + usageBoost };
       })
+      .filter(({ score }) => !combinedQuery || score > 0.015)
       .sort((left, right) => right.score - left.score
         || Number(favorites.includes(right.prompt.id)) - Number(favorites.includes(left.prompt.id))
         || (usage[right.prompt.id]?.copyCount ?? 0) - (usage[left.prompt.id]?.copyCount ?? 0)
         || right.prompt.mobilePriority - left.prompt.mobilePriority)
-      .slice(0, pasteRequested ? 3 : query || intent ? 12 : 8);
-  }, [allPrompts, catalog, detected, favorites, intent, pasteRequested, query, usage]);
+      .slice(0, pasteRequested ? 3 : query || intent || imageOnly ? 12 : 8);
+  }, [allPrompts, catalog, detected, favorites, imageOnly, intent, pasteRequested, query, usage]);
 
   const libraryResults = useMemo(() => {
     if (!catalog) return [];
     const source = libraryMode === "favorites"
       ? allPrompts.filter((prompt) => favorites.includes(prompt.id))
-      : libraryMode === "local"
-        ? localPrompts
-        : allPrompts;
+      : libraryMode === "image"
+        ? allPrompts.filter((prompt) => prompt.category === "image")
+        : libraryMode === "local"
+          ? localPrompts
+          : allPrompts;
     if (libraryQuery.trim()) {
       return source
         .map((prompt) => ({ prompt, score: scorePrompt(libraryQuery, prompt, catalog.dictionaries.synonyms) }))
@@ -296,6 +304,7 @@ export default function LibraryFirstApp() {
     return [...source].sort((left, right) =>
       Number(favorites.includes(right.id)) - Number(favorites.includes(left.id))
       || (usage[right.id]?.copyCount ?? 0) - (usage[left.id]?.copyCount ?? 0)
+      || right.mobilePriority - left.mobilePriority
       || left.title.localeCompare(right.title, "ja")
     );
   }, [allPrompts, catalog, favorites, libraryMode, libraryQuery, localPrompts, usage]);
@@ -417,7 +426,7 @@ export default function LibraryFirstApp() {
     const isFavorite = favorites.includes(prompt.id);
     return (
       <div className="lf-row-wrap">
-        <article className="lf-prompt-row">
+        <article className={`lf-prompt-row ${prompt.category === "image" ? "is-image" : ""}`}>
           <button type="button" className="lf-row-main" onClick={() => openPrompt(prompt)}>
             <span className="lf-row-icon" aria-hidden="true">{prompt.emoji}</span>
             <span className="lf-row-copy">
@@ -484,16 +493,19 @@ export default function LibraryFirstApp() {
         {tab === "home" && <>
           <section className="lf-home-search">
             <h1>何をしたい？</h1>
-            <label className="lf-search-box"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="例：文章を短く、会議を整理、企画を厳しく見る" aria-label="プロンプトを検索" />{query && <button type="button" aria-label="検索語を消す" onClick={() => setQuery("")}>×</button>}</label>
-            <div className="lf-intent-strip">{intentChoices.map(([id, label]) => <button key={id} type="button" className={intent === id ? "active" : ""} onClick={() => setIntent(intent === id ? "" : id)}>{label}</button>)}</div>
+            <label className="lf-search-box"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="例：画像を作る、文章を短く、会議を整理" aria-label="プロンプトを検索" />{query && <button type="button" aria-label="検索語を消す" onClick={() => setQuery("")}>×</button>}</label>
+            <div className="lf-intent-strip">
+              <button type="button" className={`lf-image-filter ${imageOnly ? "active" : ""}`} onClick={() => { setImageOnly((current) => !current); setIntent(""); }}>🖼️ 画像生成</button>
+              {intentChoices.map(([id, label]) => <button key={id} type="button" className={intent === id ? "active" : ""} onClick={() => { setIntent(intent === id ? "" : id); setImageOnly(false); }}>{label}</button>)}
+            </div>
           </section>
 
-          {recentQueries.length > 0 && !query && !intent && <div className="lf-recent-strip"><span>最近</span>{recentQueries.slice(0, 4).map((recent) => <button key={recent} type="button" onClick={() => setQuery(recent)}>{recent}</button>)}</div>}
+          {recentQueries.length > 0 && !query && !intent && !imageOnly && <div className="lf-recent-strip"><span>最近</span>{recentQueries.slice(0, 4).map((recent) => <button key={recent} type="button" onClick={() => setQuery(recent)}>{recent}</button>)}</div>}
 
           {error && <section className="lf-error"><strong>カタログを読み込めませんでした</strong><p>{error}</p><button type="button" onClick={() => window.location.reload()}>再読み込み</button></section>}
 
           <section className="lf-list-section">
-            <div className="lf-section-head"><h2>{pasteRequested ? "この材料に合う候補" : query || intent ? "検索結果" : "すぐ使う"}</h2><span>{homeResults.length}件</span></div>
+            <div className="lf-section-head"><h2>{pasteRequested ? "この材料に合う候補" : imageOnly ? "画像生成プロンプト" : query || intent ? "検索結果" : "すぐ使う"}</h2><span>{homeResults.length}件</span></div>
             <div className="lf-prompt-list">{homeResults.map(({ prompt }) => <PromptRow key={prompt.id} prompt={prompt} showSummary={Boolean(query || pasteRequested)} />)}</div>
             {query && homeResults.length === 0 && <button type="button" className="lf-empty-action" onClick={() => openWizard("create", undefined, query)}>この用途で自作する</button>}
           </section>
@@ -513,6 +525,7 @@ export default function LibraryFirstApp() {
           <label className="lf-search-box lf-library-search"><span aria-hidden="true">⌕</span><input value={libraryQuery} onChange={(event) => setLibraryQuery(event.target.value)} placeholder="タイトル・用途・検索語で絞り込む" aria-label="ライブラリを検索" />{libraryQuery && <button type="button" aria-label="ライブラリ検索を消す" onClick={() => setLibraryQuery("")}>×</button>}</label>
           <div className="lf-library-tabs">
             <button type="button" className={libraryMode === "all" ? "active" : ""} onClick={() => setLibraryMode("all")}>すべて <b>{allPrompts.length}</b></button>
+            <button type="button" className={libraryMode === "image" ? "active" : ""} onClick={() => setLibraryMode("image")}>画像生成 <b>{imageCount}</b></button>
             <button type="button" className={libraryMode === "favorites" ? "active" : ""} onClick={() => setLibraryMode("favorites")}>お気に入り <b>{favorites.length}</b></button>
             <button type="button" className={libraryMode === "local" ? "active" : ""} onClick={() => setLibraryMode("local")}>自作 <b>{localPrompts.length}</b></button>
           </div>
