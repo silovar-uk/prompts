@@ -80,6 +80,21 @@ describe("ProductApp", () => {
     expect(screen.getByRole("heading", { name: "何を任せる？" })).toBeVisible();
   });
 
+  it("お気に入りボタンで状態が変わりライブラリへ追加される", async () => {
+    render(<ProductApp />);
+    await screen.findByText(prompt.title);
+
+    fireEvent.click(screen.getAllByRole("button", { name: "お気に入りに追加" })[0]);
+
+    expect(useAppStore.getState().favorites).toContain(prompt.id);
+    expect(screen.getAllByRole("button", { name: "お気に入りから外す" })[0]).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: /ライブラリ/ }));
+    expect(screen.getByRole("heading", { name: "ライブラリ" })).toBeVisible();
+    expect(screen.getByText(prompt.title)).toBeVisible();
+    expect(screen.getByText("1件")).toBeVisible();
+  });
+
   it("貼り付けから推薦を表示してプロンプトを開ける", async () => {
     render(<ProductApp />);
     await screen.findByText("会議メモから決定事項と次の行動を抜き出す");
