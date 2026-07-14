@@ -77,7 +77,7 @@ describe("LibraryFirstApp", () => {
     render(<LibraryFirstApp />);
     await screen.findByText(prompt.title);
 
-    fireEvent.click(screen.getByRole("button", { name: /一覧/ }));
+    fireEvent.click(screen.getByRole("button", { name: "一覧" }));
     expect(screen.getByRole("heading", { name: "ライブラリ" })).toBeVisible();
     expect(screen.getByText(prompt.title)).toBeVisible();
 
@@ -91,7 +91,7 @@ describe("LibraryFirstApp", () => {
   it("ライブラリ検索で一覧を絞り込める", async () => {
     render(<LibraryFirstApp />);
     await screen.findByText(prompt.title);
-    fireEvent.click(screen.getByRole("button", { name: /一覧/ }));
+    fireEvent.click(screen.getByRole("button", { name: "一覧" }));
 
     fireEvent.change(screen.getByLabelText("ライブラリを検索"), { target: { value: "会議メモ" } });
     expect(screen.getByText(prompt.title)).toBeVisible();
