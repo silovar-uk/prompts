@@ -8,27 +8,28 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["catalog.json", "favicon.svg", "icons/*.png"],
+      includeAssets: ["catalog.json", "app-icon.svg"],
       manifest: {
         name: "Prompt Launcher",
         short_name: "Prompts",
-        description: "スマホから、いま必要なプロンプトをすぐ呼び出すランチャー",
-        theme_color: "#09090b",
-        background_color: "#09090b",
+        description: "文章やメモを貼るだけで、いま必要なプロンプトを3つに絞るランチャー",
+        theme_color: "#f6f0e7",
+        background_color: "#f6f0e7",
         display: "standalone",
         orientation: "portrait-primary",
         start_url: "/prompts/",
         scope: "/prompts/",
         lang: "ja",
         icons: [
-          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-          { src: "icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
+          { src: "app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" },
+          { src: "app-icon.svg", sizes: "any", type: "image/svg+xml", purpose: "maskable" }
         ]
       },
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,json}"],
         cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
         navigateFallback: "index.html"
       },
       devOptions: { enabled: false }
