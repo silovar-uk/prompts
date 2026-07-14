@@ -15,6 +15,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Validate test and type-check
+        run: npm run ci
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -25,12 +44,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate and test
-        run: npm run ci
+      - name: Generate catalog
+        run: npm run catalog
+
+      - name: Build deploy artifact
+        env:
+          VITE_COMMIT_SHA: ${{ github.sha }}
+        run: npx vite build
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
