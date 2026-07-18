@@ -28,8 +28,17 @@ jobs:
       - name: Unit - new launcher
         run: npx vitest run src/ReferenceLibraryApp.test.tsx --reporter=basic
 
-      - name: Unit - legacy launcher
-        run: npx vitest run src/LibraryFirstApp.test.tsx --reporter=basic
+      - name: Legacy - home search
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "ホームで検索結果" --reporter=basic
+
+      - name: Legacy - image home
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "画像生成だけ" --reporter=basic
+
+      - name: Legacy - library filters
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "画像生成・お気に入り" --reporter=basic
+
+      - name: Legacy - library search
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "ライブラリ検索" --reporter=basic
 
       - name: Unit - other root files
         shell: bash
