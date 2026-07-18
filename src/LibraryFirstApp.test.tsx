@@ -79,7 +79,7 @@ const catalog = {
 
 async function openLibrary() {
   await screen.findByText(meetingPrompt.title);
-  fireEvent.click(screen.getByRole("button", { name: /一覧/ }));
+  fireEvent.click(screen.getByRole("button", { name: "一覧" }));
   expect(screen.getByRole("heading", { name: "ライブラリ" })).toBeVisible();
   const libraryTabs = document.querySelector(".lf-library-tabs");
   expect(libraryTabs).not.toBeNull();
