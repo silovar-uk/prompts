@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          show-progress: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -23,22 +21,22 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund --silent
+        run: npm install --no-audit --no-fund
 
-      - name: Legacy - home search
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "ホームで検索結果" --reporter=basic
+      - name: Validate prompt data
+        run: npm run validate:data
 
-      - name: Legacy - image home
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "画像生成だけ" --reporter=basic
+      - name: Search regression
+        run: npm run test:search
 
-      - name: Legacy - image library
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "画像生成へ絞り込める" --reporter=basic
+      - name: Unit tests
+        run: npm run test
 
-      - name: Legacy - add favorite
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "お気に入りへ追加できる" --reporter=basic
+      - name: Build
+        run: npm run build
 
-      - name: Legacy - favorite filter
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "お気に入りだけを表示" --reporter=basic
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
 
-      - name: Legacy - library search
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "ライブラリ検索" --reporter=basic
+      - name: Mobile smoke tests
+        run: npm run test:e2e
