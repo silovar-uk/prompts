@@ -25,7 +25,16 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --silent
 
-      - name: Unit tests
+      - name: Unit - library navigation
+        run: npx vitest run src/ReferenceLibraryApp.test.tsx -t "ライブラリから" --reporter=basic
+
+      - name: Unit - image category
+        run: npx vitest run src/ReferenceLibraryApp.test.tsx -t "画像生成カテゴリ" --reporter=basic
+
+      - name: Unit - personal shelf
+        run: npx vitest run src/ReferenceLibraryApp.test.tsx -t "マイ棚へ固定" --reporter=basic
+
+      - name: Unit - full suite
         run: npm run test -- --reporter=basic
 
       - name: Validate prompt data
