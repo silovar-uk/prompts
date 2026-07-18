@@ -31,6 +31,7 @@ const outputLabels: Record<string, string> = {
   "slide-outline": "スライド構成",
   "image-prompt": "画像生成プロンプト",
   json: "JSON",
+  text: "文章",
   lesson: "教材"
 };
 
@@ -151,7 +152,7 @@ export default function ReferenceLibraryApp() {
 
           <div className="rl-filters" aria-label="カテゴリで絞り込む">
             <button type="button" className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>すべて</button>
-            {imageCategory && <button type="button" className={filter === imageCategory.slug ? "active image" : "image"} onClick={() => setFilter(imageCategory.slug)}>🖼️ {imageCategory.label}</button>}
+            {imageCategory && <button type="button" className={filter === imageCategory.slug ? "active" : ""} onClick={() => setFilter(imageCategory.slug)}>🖼️ {imageCategory.label}</button>}
             <button type="button" className={filter === "favorites" ? "active" : ""} onClick={() => setFilter("favorites")}>★ お気に入り</button>
             {remainingCategories.map((category) => (
               <button key={category.slug} type="button" className={filter === category.slug ? "active" : ""} onClick={() => setFilter(category.slug)}>{category.label}</button>
