@@ -9,13 +9,13 @@ async function main() {
   const catalog = catalogSchema.parse(JSON.parse(await fs.readFile(path.join(root, "public/catalog.json"), "utf8")));
   const fixtures: Array<{ query: string; expectedIds: string[]; k: number }> = [];
 
-  // Every prompt must appear at least once before additional phrases fill the 100-case suite.
+  // Guarantee that every prompt is represented by an unambiguous identity query.
+  // Natural search phrases are then used for the remaining evaluation cases.
   for (const prompt of catalog.prompts) {
-    const query = prompt.searchPhrases[0];
-    if (query) fixtures.push({ query, expectedIds: [prompt.id], k: 3 });
+    fixtures.push({ query: prompt.title, expectedIds: [prompt.id], k: 3 });
   }
 
-  let phraseIndex = 1;
+  let phraseIndex = 0;
   while (fixtures.length < 100) {
     let added = false;
     for (const prompt of catalog.prompts) {
@@ -30,8 +30,14 @@ async function main() {
   }
 
   if (fixtures.length < 100) throw new Error(`検索評価が100件に足りません: ${fixtures.length}件`);
-  await fs.writeFile(path.join(root, "eval/queries.json"), `${JSON.stringify(fixtures.slice(0, 100), null, 2)}\n`, "utf8");
-  console.log(`✓ generated 100 search evaluation queries covering ${catalog.prompts.length} prompts`);
+
+  const selected = fixtures.slice(0, 100);
+  const coveredIds = new Set(selected.flatMap((fixture) => fixture.expectedIds));
+  const uncoveredIds = catalog.prompts.map((prompt) => prompt.id).filter((id) => !coveredIds.has(id));
+  if (uncoveredIds.length) throw new Error(`検索評価に含まれないプロンプトがあります: ${uncoveredIds.join(", ")}`);
+
+  await fs.writeFile(path.join(root, "eval/queries.json"), `${JSON.stringify(selected, null, 2)}\n`, "utf8");
+  console.log(`✓ generated 100 search evaluation queries covering ${coveredIds.size} prompts`);
 }
 
 main().catch((error) => {
