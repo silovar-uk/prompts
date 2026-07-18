@@ -6,6 +6,7 @@ import "./index.css";
 import "./library-first.css";
 import "./image-prompts.css";
 import "./reference-library.css";
+import "./reference-cards.css";
 
 const legacyMode = new URLSearchParams(window.location.search).get("mode") === "launcher";
 
