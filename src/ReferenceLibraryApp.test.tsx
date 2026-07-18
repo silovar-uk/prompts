@@ -85,10 +85,13 @@ describe("ReferenceLibraryApp", () => {
       configurable: true,
       value: vi.fn(() => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
     });
+    Object.defineProperty(window, "scrollTo", { configurable: true, value: vi.fn() });
   });
 
-  it("一覧から人向けの個別ページへ移動できる", async () => {
+  it("ライブラリから人向けの個別ページへ移動できる", async () => {
     render(<ReferenceLibraryApp />);
+    fireEvent.click(screen.getByRole("button", { name: "ライブラリ" }));
+
     const link = await screen.findByRole("link", { name: new RegExp(meetingPrompt.title) });
     expect(link).toHaveAttribute("href", "/prompts/p/meeting-001/");
     expect(screen.getByText("meeting-001@1")).toBeVisible();
@@ -96,27 +99,27 @@ describe("ReferenceLibraryApp", () => {
 
   it("画像生成カテゴリだけを表示できる", async () => {
     render(<ReferenceLibraryApp />);
+    fireEvent.click(screen.getByRole("button", { name: "ライブラリ" }));
     await screen.findByText(meetingPrompt.title);
 
-    fireEvent.click(screen.getByRole("button", { name: "🖼️ 画像生成" }));
+    fireEvent.click(screen.getByRole("button", { name: "画像生成" }));
 
     expect(screen.getByText(imagePrompt.title)).toBeVisible();
     expect(screen.queryByText(meetingPrompt.title)).not.toBeInTheDocument();
   });
 
-  it("検索とお気に入り絞り込みが使える", async () => {
+  it("検索したプロンプトをマイ棚へ固定できる", async () => {
     render(<ReferenceLibraryApp />);
-    await screen.findByText(meetingPrompt.title);
 
-    fireEvent.change(screen.getByLabelText("プロンプトを検索"), { target: { value: "会議メモ" } });
-    expect(screen.getByText(meetingPrompt.title)).toBeVisible();
+    fireEvent.change(screen.getByLabelText("やりたいことからプロンプトを検索"), { target: { value: "会議メモ" } });
+    expect(await screen.findByText(meetingPrompt.title)).toBeVisible();
     expect(screen.queryByText(imagePrompt.title)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: `${meetingPrompt.title}をお気に入りに追加` }));
-    fireEvent.change(screen.getByLabelText("プロンプトを検索"), { target: { value: "" } });
-    fireEvent.click(screen.getByRole("button", { name: "★ お気に入り" }));
+    fireEvent.click(screen.getByRole("button", { name: `${meetingPrompt.title}をマイ棚へ追加` }));
+    fireEvent.click(screen.getByRole("button", { name: /マイ棚/ }));
 
-    expect(screen.getByText(meetingPrompt.title)).toBeVisible();
+    expect(screen.getByText("固定したプロンプト")).toBeVisible();
+    expect(screen.getByText(meetingPrompt.shortTitle)).toBeVisible();
     expect(useAppStore.getState().favorites).toContain(meetingPrompt.id);
   });
 });
