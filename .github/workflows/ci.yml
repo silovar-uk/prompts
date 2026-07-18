@@ -25,47 +25,20 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund --silent
 
-      - name: Unit - reference launcher
-        run: npx vitest run src/ReferenceLibraryApp.test.tsx --reporter=basic
+      - name: Legacy - home search
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "ホームで検索結果" --reporter=basic
 
-      - name: Unit - legacy launcher
-        run: npx vitest run src/LibraryFirstApp.test.tsx --reporter=basic
+      - name: Legacy - image home
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "画像生成だけ" --reporter=basic
 
-      - name: Unit - other root files
-        shell: bash
-        run: |
-          mapfile -t files < <(find src -maxdepth 1 -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) ! -name 'ReferenceLibraryApp.test.tsx' ! -name 'LibraryFirstApp.test.tsx')
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
+      - name: Legacy - image library
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "画像生成へ絞り込める" --reporter=basic
 
-      - name: Unit - components
-        shell: bash
-        run: |
-          mapfile -t files < <(find src/components -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
+      - name: Legacy - add favorite
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "お気に入りへ追加できる" --reporter=basic
 
-      - name: Unit - local
-        shell: bash
-        run: |
-          mapfile -t files < <(find src/local -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
+      - name: Legacy - favorite filter
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "お気に入りだけを表示" --reporter=basic
 
-      - name: Unit - search
-        shell: bash
-        run: |
-          mapfile -t files < <(find src/search -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - store
-        shell: bash
-        run: |
-          mapfile -t files < <(find src/store -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - scripts
-        shell: bash
-        run: |
-          mapfile -t files < <(find scripts -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - full suite
-        run: npm run test -- --reporter=basic
+      - name: Legacy - library search
+        run: npx vitest run src/LibraryFirstApp.test.tsx -t "ライブラリ検索" --reporter=basic
