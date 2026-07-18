@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { inputFieldSchema } from "./catalog.ts";
+import { inputFieldSchema } from "./catalog";
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const datePattern = /^\d{4}-\d{2}-\d{2}$/;
