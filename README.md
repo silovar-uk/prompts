@@ -78,7 +78,7 @@ AIがURLを読めない場合は、個別ページの「プロンプト全文を
 
 ## 現在の収録内容
 
-正式プロンプト30件と画像生成プロンプト18件、合計48件を収録しています。
+正式プロンプト30件、画像生成プロンプト18件、暗記カードPDFワークフロー1件の合計49件を収録しています。
 
 - 文章・リライト
 - 会議・議事録
@@ -89,6 +89,17 @@ AIがURLを読めない場合は、個別ページの「プロンプト全文を
 - Web・コード
 - 資料・画像生成
 - 学習・解説
+
+### 暗記カードPDF
+
+`learning-002`は、テーマ・記事・動画文字起こしなどを、問題ページと答えページが交互に並ぶ暗記カード風PDFへ変換します。
+
+- 内容量に応じたカード枚数の判断
+- 定義、因果関係、手順、比較、判断基準などを混ぜたカード設計
+- 各答えページへの詳細解説、覚え方、出典
+- 公式・学術資料を優先した調査
+- 縦型レイアウト、ブックマーク、クリック可能なURL
+- PDF出力後の文字化け、見切れ、ページ対応、重複、リンク確認
 
 ## 入口画面
 
@@ -120,6 +131,8 @@ https://silovar-uk.github.io/prompts/?mode=launcher
 
 ```text
 src/schema/reference.ts              Schema v2
+scripts/image-prompts.ts             画像生成18件
+scripts/study-prompts.ts             暗記カードPDFワークフロー
 scripts/build-reference-pages.ts     静的参照ページ生成
 scripts/validate-reference-pages.ts  生成物検証
 ```
@@ -127,8 +140,8 @@ scripts/validate-reference-pages.ts  生成物検証
 `npm run catalog`で次を一括実行します。
 
 1. 基本プロンプトを生成
-2. 画像生成18件を結合
-3. 48件の静的参照ページを生成
+2. 画像生成18件と暗記カードPDFワークフロー1件を結合
+3. 49件の静的参照ページを生成
 4. HTML・Markdown・JSON・ID・Version・件数を検証
 
 ## 開発
