@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LibraryFirstApp from "./LibraryFirstApp";
 import { useAppStore } from "./store/appStore";
@@ -127,12 +127,14 @@ describe("LibraryFirstApp", () => {
     fireEvent.click(screen.getByRole("button", { name: /一覧/ }));
     expect(screen.getByRole("heading", { name: "ライブラリ" })).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: /画像生成 1/ }));
+    const libraryTabs = document.querySelector(".lf-library-tabs");
+    expect(libraryTabs).not.toBeNull();
+    fireEvent.click(within(libraryTabs as HTMLElement).getByRole("button", { name: /画像生成 1/ }));
     expect(screen.getByText(imagePrompt.title)).toBeVisible();
     expect(screen.queryByText(meetingPrompt.title)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "お気に入りに追加" }));
-    fireEvent.click(screen.getByRole("button", { name: /お気に入り/ }));
+    fireEvent.click(within(libraryTabs as HTMLElement).getByRole("button", { name: /^お気に入り 1$/ }));
 
     expect(screen.getByText(imagePrompt.title)).toBeVisible();
     expect(useAppStore.getState().favorites).toContain(imagePrompt.id);
