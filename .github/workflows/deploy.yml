@@ -30,8 +30,17 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Validate test and type-check
-        run: npm run ci
+      - name: Generate and validate prompt references
+        run: npm run catalog
+
+      - name: Evaluate search quality
+        run: npm run test:search
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Type-check application and scripts
+        run: npx tsc -b
 
   build:
     runs-on: ubuntu-latest
@@ -47,8 +56,20 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Generate catalog
-        run: npm run catalog
+      - name: Generate core catalog
+        run: npm run generate:core
+
+      - name: Add image and study prompts
+        run: npm run extend:catalog
+
+      - name: Generate readable prompt pages
+        run: npm run build:references
+
+      - name: Polish prompt pages
+        run: npm run polish:references
+
+      - name: Validate generated references
+        run: npm run validate:references
 
       - name: Build deploy artifact
         env:
