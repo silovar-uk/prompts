@@ -28,10 +28,13 @@ jobs:
       - name: Unit - new launcher
         run: npx vitest run src/ReferenceLibraryApp.test.tsx --reporter=basic
 
-      - name: Unit - root app files
+      - name: Unit - legacy launcher
+        run: npx vitest run src/LibraryFirstApp.test.tsx --reporter=basic
+
+      - name: Unit - other root files
         shell: bash
         run: |
-          mapfile -t files < <(find src -maxdepth 1 -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) ! -name 'ReferenceLibraryApp.test.tsx')
+          mapfile -t files < <(find src -maxdepth 1 -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) ! -name 'ReferenceLibraryApp.test.tsx' ! -name 'LibraryFirstApp.test.tsx')
           if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
 
       - name: Unit - components
