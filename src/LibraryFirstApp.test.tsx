@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LibraryFirstApp from "./LibraryFirstApp";
 import { useAppStore } from "./store/appStore";
@@ -77,6 +77,15 @@ const catalog = {
   }
 };
 
+async function openLibrary() {
+  await screen.findByText(meetingPrompt.title);
+  fireEvent.click(screen.getByRole("button", { name: "一覧" }));
+  expect(screen.getByRole("heading", { name: "ライブラリ" })).toBeVisible();
+  const libraryTabs = document.querySelector(".lf-library-tabs");
+  expect(libraryTabs).not.toBeNull();
+  return within(libraryTabs as HTMLElement);
+}
+
 describe("LibraryFirstApp", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -120,28 +129,40 @@ describe("LibraryFirstApp", () => {
     expect(screen.getByRole("heading", { name: "画像生成プロンプト" })).toBeVisible();
   });
 
-  it("ライブラリで画像生成・お気に入りを切り替えられる", async () => {
+  it("ライブラリで画像生成へ絞り込める", async () => {
     render(<LibraryFirstApp />);
-    await screen.findByText(meetingPrompt.title);
+    const tabs = await openLibrary();
 
-    fireEvent.click(screen.getByRole("button", { name: /一覧/ }));
-    expect(screen.getByRole("heading", { name: "ライブラリ" })).toBeVisible();
+    fireEvent.click(tabs.getByRole("button", { name: /画像生成 1/ }));
 
-    fireEvent.click(screen.getByRole("button", { name: /画像生成 1/ }));
     expect(screen.getByText(imagePrompt.title)).toBeVisible();
     expect(screen.queryByText(meetingPrompt.title)).not.toBeInTheDocument();
+  });
+
+  it("ライブラリからお気に入りへ追加できる", async () => {
+    render(<LibraryFirstApp />);
+    const tabs = await openLibrary();
+    fireEvent.click(tabs.getByRole("button", { name: /画像生成 1/ }));
 
     fireEvent.click(screen.getByRole("button", { name: "お気に入りに追加" }));
-    fireEvent.click(screen.getByRole("button", { name: /お気に入り/ }));
 
-    expect(screen.getByText(imagePrompt.title)).toBeVisible();
-    expect(useAppStore.getState().favorites).toContain(imagePrompt.id);
+    await waitFor(() => expect(useAppStore.getState().favorites).toContain(imagePrompt.id));
+  });
+
+  it("ライブラリでお気に入りだけを表示できる", async () => {
+    useAppStore.getState().toggleFavorite(imagePrompt.id);
+    render(<LibraryFirstApp />);
+    const tabs = await openLibrary();
+
+    fireEvent.click(tabs.getByRole("button", { name: /^お気に入り/ }));
+
+    expect(await screen.findByText(imagePrompt.title)).toBeVisible();
+    expect(screen.queryByText(meetingPrompt.title)).not.toBeInTheDocument();
   });
 
   it("ライブラリ検索で一覧を絞り込める", async () => {
     render(<LibraryFirstApp />);
-    await screen.findByText(meetingPrompt.title);
-    fireEvent.click(screen.getByRole("button", { name: /一覧/ }));
+    await openLibrary();
 
     fireEvent.change(screen.getByLabelText("ライブラリを検索"), { target: { value: "会議メモ" } });
     expect(screen.getByText(meetingPrompt.title)).toBeVisible();
