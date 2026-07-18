@@ -116,7 +116,7 @@ describe("ReferenceLibraryApp", () => {
     expect(screen.queryByText(imagePrompt.title)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: `${meetingPrompt.title}をマイ棚へ追加` }));
-    fireEvent.click(screen.getByRole("button", { name: /マイ棚/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^★ マイ棚/ }));
 
     expect(screen.getByText("固定したプロンプト")).toBeVisible();
     expect(screen.getByText(meetingPrompt.shortTitle)).toBeVisible();
