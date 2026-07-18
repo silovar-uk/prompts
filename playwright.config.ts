@@ -11,6 +11,7 @@ export default defineConfig({
       ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
       : {},
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:4173/prompts/",
+    serviceWorkers: "block",
     trace: "on-first-retry"
   },
   projects: [
