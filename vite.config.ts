@@ -8,11 +8,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["catalog.json", "app-icon.svg"],
+      includeAssets: ["catalog.json", "reference-catalog.json", "prompts.md", "llms.txt", "sitemap.xml", "robots.txt", "app-icon.svg"],
       manifest: {
-        name: "Prompt Launcher",
+        name: "Prompts｜人が読めて、AIが実行できるプロンプト集",
         short_name: "Prompts",
-        description: "文章やメモを貼るだけで、いま必要なプロンプトを3つに絞るランチャー",
+        description: "人が読んで選び、AIにURLで渡せる公開プロンプト・ライブラリ",
         theme_color: "#f6f0e7",
         background_color: "#f6f0e7",
         display: "standalone",
@@ -26,7 +26,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,json}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,json,md,txt,xml}"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,
