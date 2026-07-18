@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          show-progress: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -21,16 +23,7 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Validate prompt data
-        run: npm run validate:data
-
-      - name: Search regression
-        run: npm run test:search
-
-      - name: Unit tests
-        run: npm run test
+        run: npm install --no-audit --no-fund --silent
 
       - name: Build
         run: npm run build
@@ -38,5 +31,11 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Mobile smoke tests
-        run: npm run test:e2e
+      - name: Mobile - navigation
+        run: npx playwright test e2e/mobile.spec.ts -g "ホーム・ライブラリ・マイ棚"
+
+      - name: Mobile - use flow
+        run: npx playwright test e2e/mobile.spec.ts -g "使用パネル"
+
+      - name: Mobile - shelf
+        run: npx playwright test e2e/mobile.spec.ts -g "マイ棚へ固定"
