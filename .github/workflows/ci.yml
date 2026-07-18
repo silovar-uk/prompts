@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          show-progress: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -23,67 +21,16 @@ jobs:
           node-version: 22
 
       - name: Install dependencies
-        run: npm install --no-audit --no-fund --silent
-
-      - name: Unit - new launcher
-        run: npx vitest run src/ReferenceLibraryApp.test.tsx --reporter=basic
-
-      - name: Legacy - home search
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "ホームで検索結果" --reporter=basic
-
-      - name: Legacy - image home
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "画像生成だけ" --reporter=basic
-
-      - name: Legacy - library filters
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "画像生成・お気に入り" --reporter=basic
-
-      - name: Legacy - library search
-        run: npx vitest run src/LibraryFirstApp.test.tsx -t "ライブラリ検索" --reporter=basic
-
-      - name: Unit - other root files
-        shell: bash
-        run: |
-          mapfile -t files < <(find src -maxdepth 1 -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) ! -name 'ReferenceLibraryApp.test.tsx' ! -name 'LibraryFirstApp.test.tsx')
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - components
-        shell: bash
-        run: |
-          mapfile -t files < <(find src/components -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - local
-        shell: bash
-        run: |
-          mapfile -t files < <(find src/local -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - search
-        shell: bash
-        run: |
-          mapfile -t files < <(find src/search -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - store
-        shell: bash
-        run: |
-          mapfile -t files < <(find src/store -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - scripts
-        shell: bash
-        run: |
-          mapfile -t files < <(find scripts -type f \( -name '*.test.ts' -o -name '*.test.tsx' \) 2>/dev/null)
-          if ((${#files[@]})); then npx vitest run "${files[@]}" --reporter=basic; fi
-
-      - name: Unit - full suite
-        run: npm run test -- --reporter=basic
+        run: npm install --no-audit --no-fund
 
       - name: Validate prompt data
         run: npm run validate:data
 
       - name: Search regression
         run: npm run test:search
+
+      - name: Unit tests
+        run: npm run test
 
       - name: Build
         run: npm run build
