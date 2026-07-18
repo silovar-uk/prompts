@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ReferenceLibraryApp from "./ReferenceLibraryApp";
 import { useAppStore } from "./store/appStore";
@@ -90,36 +90,41 @@ describe("ReferenceLibraryApp", () => {
 
   it("ライブラリから人向けの個別ページへ移動できる", async () => {
     render(<ReferenceLibraryApp />);
-    fireEvent.click(screen.getByRole("button", { name: "ライブラリ" }));
+    fireEvent.click(await screen.findByRole("button", { name: "ライブラリ" }));
+    await screen.findByRole("heading", { name: "プロンプトを一覧から探す" });
 
     const link = await screen.findByRole("link", { name: new RegExp(meetingPrompt.title) });
     expect(link).toHaveAttribute("href", "/prompts/p/meeting-001/");
-    expect(screen.getByText("meeting-001@1")).toBeVisible();
+    expect(within(link).getByText("meeting-001@1")).toBeVisible();
   });
 
   it("画像生成カテゴリだけを表示できる", async () => {
     render(<ReferenceLibraryApp />);
-    fireEvent.click(screen.getByRole("button", { name: "ライブラリ" }));
-    await screen.findByText(meetingPrompt.title);
+    fireEvent.click(await screen.findByRole("button", { name: "ライブラリ" }));
+    await screen.findByRole("heading", { name: "プロンプトを一覧から探す" });
 
     fireEvent.click(screen.getByRole("button", { name: "画像生成" }));
 
-    expect(screen.getByText(imagePrompt.title)).toBeVisible();
-    expect(screen.queryByText(meetingPrompt.title)).not.toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: new RegExp(imagePrompt.title) })).toBeVisible();
+    expect(screen.queryByRole("link", { name: new RegExp(meetingPrompt.title) })).not.toBeInTheDocument();
   });
 
   it("検索したプロンプトをマイ棚へ固定できる", async () => {
     render(<ReferenceLibraryApp />);
+    const search = await screen.findByLabelText("やりたいことからプロンプトを検索");
 
-    fireEvent.change(screen.getByLabelText("やりたいことからプロンプトを検索"), { target: { value: "会議メモ" } });
-    expect(await screen.findByText(meetingPrompt.title)).toBeVisible();
-    expect(screen.queryByText(imagePrompt.title)).not.toBeInTheDocument();
+    fireEvent.change(search, { target: { value: "会議メモ" } });
+    const resultLink = await screen.findByRole("link", { name: new RegExp(meetingPrompt.title) });
+    expect(resultLink).toBeVisible();
+    expect(screen.queryByRole("link", { name: new RegExp(imagePrompt.title) })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: `${meetingPrompt.title}をマイ棚へ追加` }));
-    fireEvent.click(screen.getByRole("button", { name: /^★ マイ棚/ }));
+    await waitFor(() => expect(useAppStore.getState().favorites).toContain(meetingPrompt.id));
 
-    expect(screen.getByText("固定したプロンプト")).toBeVisible();
-    expect(screen.getByText(meetingPrompt.shortTitle)).toBeVisible();
-    expect(useAppStore.getState().favorites).toContain(meetingPrompt.id);
+    fireEvent.click(screen.getByRole("button", { name: /^★ マイ棚/ }));
+    const shelfHeading = await screen.findByRole("heading", { name: "固定したプロンプト" });
+    const shelfGroup = shelfHeading.closest("section");
+    expect(shelfGroup).not.toBeNull();
+    expect(within(shelfGroup as HTMLElement).getByText(meetingPrompt.shortTitle)).toBeVisible();
   });
 });
