@@ -132,7 +132,7 @@ describe("LibraryFirstApp", () => {
     expect(screen.queryByText(meetingPrompt.title)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "お気に入りに追加" }));
-    fireEvent.click(screen.getByRole("button", { name: /お気に入り/ }));
+    fireEvent.click(screen.getByRole("button", { name: "お気に入り 1" }));
 
     expect(screen.getByText(imagePrompt.title)).toBeVisible();
     expect(useAppStore.getState().favorites).toContain(imagePrompt.id);
