@@ -5,8 +5,7 @@ import { referencePromptSchema, type ReferencePrompt } from "../src/schema/refer
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = path.join(root, "public");
-
-const returnSearchScript = `<script>(()=>{const link=document.querySelector('[data-return-search]');if(!link)return;try{const ref=new URL(document.referrer);if(ref.origin===location.origin&&ref.pathname==='/prompts/'&&(ref.searchParams.has('q')||ref.searchParams.has('filter'))){link.href=ref.pathname+ref.search+ref.hash;link.textContent='← 検索結果へ戻る'}}catch{}})();</script>`;
+const returnSearchScript = '<script src="/prompts/reference-page-ux.js" defer></script>';
 
 function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
