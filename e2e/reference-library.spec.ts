@@ -52,7 +52,7 @@ test("検索条件を保ったまま詳細を見て検索結果へ戻れる", as
 test("0件から検索条件をすぐ戻せる", async ({ page }) => {
   await page.goto("./");
 
-  await page.getByLabel("プロンプトを検索").fill("絶対に存在しない検索語xyz123");
+  await page.getByLabel("プロンプトを検索").fill("zzqv998877noresult");
   await expect(page.getByText(/に合うプロンプトはありません/)).toBeVisible();
   await page.getByRole("button", { name: "検索をクリア" }).click();
 
