@@ -25,3 +25,38 @@ test("Reference Libraryの選択状態が支援技術にも伝わる", async ({ 
   await expect(darkMode).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
+
+test("検索条件を保ったまま詳細を見て検索結果へ戻れる", async ({ page }) => {
+  await page.goto("./");
+
+  const search = page.getByLabel("プロンプトを検索");
+  await search.fill("会議");
+  const meetingFilter = page.getByRole("button", { name: "会議・議事録" });
+  await meetingFilter.click();
+
+  await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("会議");
+  await expect.poll(() => new URL(page.url()).searchParams.get("filter")).toBe("meeting");
+  await expect(page.locator(".rl-row-main").first()).toBeVisible();
+
+  await page.locator(".rl-row-main").first().click();
+  const returnLink = page.getByRole("link", { name: /検索結果へ戻る/ });
+  await expect(returnLink).toBeVisible();
+  await returnLink.click();
+
+  await expect(page.getByLabel("プロンプトを検索")).toHaveValue("会議");
+  await expect(page.getByRole("button", { name: "会議・議事録" })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("会議");
+  await expect.poll(() => new URL(page.url()).searchParams.get("filter")).toBe("meeting");
+});
+
+test("0件から検索条件をすぐ戻せる", async ({ page }) => {
+  await page.goto("./");
+
+  await page.getByLabel("プロンプトを検索").fill("絶対に存在しない検索語xyz123");
+  await expect(page.getByText(/に合うプロンプトはありません/)).toBeVisible();
+  await page.getByRole("button", { name: "検索をクリア" }).click();
+
+  await expect(page.getByLabel("プロンプトを検索")).toHaveValue("");
+  await expect(page.locator(".rl-row").first()).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBeNull();
+});
