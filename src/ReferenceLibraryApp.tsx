@@ -151,11 +151,11 @@ export default function ReferenceLibraryApp() {
           </label>
 
           <div className="rl-filters" aria-label="カテゴリで絞り込む">
-            <button type="button" className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>すべて</button>
-            {imageCategory && <button type="button" className={filter === imageCategory.slug ? "active" : ""} onClick={() => setFilter(imageCategory.slug)}>🖼️ {imageCategory.label}</button>}
-            <button type="button" className={filter === "favorites" ? "active" : ""} onClick={() => setFilter("favorites")}>★ お気に入り</button>
+            <button type="button" aria-pressed={filter === "all"} className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>すべて</button>
+            {imageCategory && <button type="button" aria-pressed={filter === imageCategory.slug} className={filter === imageCategory.slug ? "active" : ""} onClick={() => setFilter(imageCategory.slug)}>🖼️ {imageCategory.label}</button>}
+            <button type="button" aria-pressed={filter === "favorites"} className={filter === "favorites" ? "active" : ""} onClick={() => setFilter("favorites")}>★ お気に入り</button>
             {remainingCategories.map((category) => (
-              <button key={category.slug} type="button" className={filter === category.slug ? "active" : ""} onClick={() => setFilter(category.slug)}>{category.label}</button>
+              <button key={category.slug} type="button" aria-pressed={filter === category.slug} className={filter === category.slug ? "active" : ""} onClick={() => setFilter(category.slug)}>{category.label}</button>
             ))}
           </div>
         </section>
@@ -168,13 +168,13 @@ export default function ReferenceLibraryApp() {
           </section>
         )}
 
-        <section className="rl-results" aria-live="polite">
+        <section className="rl-results">
           <div className="rl-results-head">
             <div>
               <h2>{query ? "検索結果" : filter === "favorites" ? "お気に入り" : filter === "all" ? "すべてのプロンプト" : categoryMap.get(filter)?.label ?? "プロンプト"}</h2>
               <p>タイトルを押すと、人向けの説明とAI向け実行仕様を開きます。</p>
             </div>
-            <b>{results.length}件</b>
+            <b aria-live="polite" aria-atomic="true">{results.length}件</b>
           </div>
 
           <div className="rl-list">
@@ -200,6 +200,7 @@ export default function ReferenceLibraryApp() {
                   <button
                     type="button"
                     className={`rl-favorite ${isFavorite ? "active" : ""}`}
+                    aria-pressed={isFavorite}
                     aria-label={isFavorite ? `${prompt.title}をお気に入りから外す` : `${prompt.title}をお気に入りに追加`}
                     onClick={() => toggleFavorite(prompt.id)}
                   >{isFavorite ? "★" : "☆"}</button>
@@ -224,10 +225,10 @@ export default function ReferenceLibraryApp() {
           <pre>次のURLを読み、ページに記載された<br />AI向け実行仕様に従ってください。</pre>
         </section>
 
-        <section className="rl-footer-tools">
+        <section className="rl-footer-tools" aria-label="表示テーマ">
           <span>表示</span>
           {(["auto", "light", "dark"] as ThemeMode[]).map((mode) => (
-            <button key={mode} type="button" className={prefs.theme === mode ? "active" : ""} onClick={() => setTheme(mode)}>
+            <button key={mode} type="button" aria-pressed={prefs.theme === mode} className={prefs.theme === mode ? "active" : ""} onClick={() => setTheme(mode)}>
               {mode === "auto" ? "自動" : mode === "light" ? "明るい" : "暗い"}
             </button>
           ))}
