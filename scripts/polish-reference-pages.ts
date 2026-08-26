@@ -6,6 +6,8 @@ import { referencePromptSchema, type ReferencePrompt } from "../src/schema/refer
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const publicDir = path.join(root, "public");
 
+const returnSearchScript = `<script>(()=>{const link=document.querySelector('[data-return-search]');if(!link)return;try{const ref=new URL(document.referrer);if(ref.origin===location.origin&&ref.pathname==='/prompts/'&&(ref.searchParams.has('q')||ref.searchParams.has('filter'))){link.href=ref.pathname+ref.search+ref.hash;link.textContent='← 検索結果へ戻る'}}catch{}})();</script>`;
+
 function escapeHtml(value: string): string {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 }
@@ -30,6 +32,14 @@ function fixComposerRuntime(html: string): string {
   return html.replace(broken, fixed);
 }
 
+function improvePageUx(html: string): string {
+  const next = html
+    .replace('<a href="/prompts/">検索</a>', '<a href="/prompts/" data-return-search>← 検索へ戻る</a>')
+    .replace('>プロンプト全文をコピー</button>', '>本文だけコピー</button>')
+    .replace(';backdrop-filter:blur(16px)', '');
+  return next.replace("</body></html>", `${returnSearchScript}</body></html>`);
+}
+
 async function polishPageSet(reference: ReferencePrompt, version: number): Promise<ReferencePrompt> {
   const directories = [
     path.join(publicDir, "p", reference.id),
@@ -51,7 +61,7 @@ async function polishPageSet(reference: ReferencePrompt, version: number): Promi
     ]);
 
     await Promise.all([
-      fs.writeFile(htmlPath, fixComposerRuntime(replaceUseWhen(html, reference.humanGuide.useWhen, cleanUseWhen, "html")), "utf8"),
+      fs.writeFile(htmlPath, improvePageUx(fixComposerRuntime(replaceUseWhen(html, reference.humanGuide.useWhen, cleanUseWhen, "html"))), "utf8"),
       fs.writeFile(markdownPath, replaceUseWhen(markdown, reference.humanGuide.useWhen, cleanUseWhen, "markdown"), "utf8"),
       fs.writeFile(jsonPath, `${JSON.stringify(nextReference, null, 2)}\n`, "utf8")
     ]);
