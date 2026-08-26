@@ -55,7 +55,7 @@ export default function ReferenceLibraryApp() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`${import.meta.env.BASE_URL}catalog.json`, { signal: controller.signal, cache: "no-store" })
+    fetch(`${import.meta.env.BASE_URL}catalog.json`, { signal: controller.signal, cache: "no-cache" })
       .then((response) => {
         if (!response.ok) throw new Error(`catalog.json: HTTP ${response.status}`);
         return response.json();
@@ -150,7 +150,7 @@ export default function ReferenceLibraryApp() {
             {query && <button type="button" onClick={() => setQuery("")} aria-label="検索語を消す">×</button>}
           </label>
 
-          <div className="rl-filters" aria-label="カテゴリで絞り込む">
+          <div className="rl-filters" role="group" aria-label="カテゴリで絞り込む">
             <button type="button" aria-pressed={filter === "all"} className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>すべて</button>
             {imageCategory && <button type="button" aria-pressed={filter === imageCategory.slug} className={filter === imageCategory.slug ? "active" : ""} onClick={() => setFilter(imageCategory.slug)}>🖼️ {imageCategory.label}</button>}
             <button type="button" aria-pressed={filter === "favorites"} className={filter === "favorites" ? "active" : ""} onClick={() => setFilter("favorites")}>★ お気に入り</button>
@@ -174,7 +174,7 @@ export default function ReferenceLibraryApp() {
               <h2>{query ? "検索結果" : filter === "favorites" ? "お気に入り" : filter === "all" ? "すべてのプロンプト" : categoryMap.get(filter)?.label ?? "プロンプト"}</h2>
               <p>タイトルを押すと、人向けの説明とAI向け実行仕様を開きます。</p>
             </div>
-            <b aria-live="polite" aria-atomic="true">{results.length}件</b>
+            <output aria-live="polite" aria-atomic="true">{results.length}件</output>
           </div>
 
           <div className="rl-list">
