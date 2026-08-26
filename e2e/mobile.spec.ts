@@ -1,7 +1,9 @@
 import { expect, test } from "@playwright/test";
 
+const launcherPath = "./?mode=launcher";
+
 test("スマホでホームのボタンと下部ナビが反応する", async ({ page }) => {
-  await page.goto("./");
+  await page.goto(launcherPath);
   await expect(page.getByRole("heading", { name: "何を任せる？" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "メインナビゲーション" })).toBeVisible();
 
@@ -19,7 +21,7 @@ test("スマホでホームのボタンと下部ナビが反応する", async ({
 });
 
 test("貼り付けた会議メモから推薦してコピーまで進める", async ({ page }) => {
-  await page.goto("./");
+  await page.goto(launcherPath);
   await page.getByLabel("材料を貼り付け").fill("会議で決定事項を確認。担当は田中、期限は金曜日。次回までに資料を作る。");
   await page.getByRole("button", { name: "おすすめを見る" }).click();
   await expect(page.getByRole("heading", { name: "この材料に合う3つ" })).toBeVisible();
@@ -34,7 +36,7 @@ test("貼り付けた会議メモから推薦してコピーまで進める", as
 });
 
 test("ライブラリから整理画面を開いて閉じられる", async ({ page }) => {
-  await page.goto("./");
+  await page.goto(launcherPath);
   await page.getByRole("button", { name: /ライブラリ/ }).click();
   await page.getByRole("button", { name: "整理・アーカイブ・移行" }).click();
   await expect(page.getByRole("heading", { name: "自作プロンプト管理" })).toBeVisible();
