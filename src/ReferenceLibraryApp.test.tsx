@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ReferenceLibraryApp from "./ReferenceLibraryApp";
 import { useAppStore } from "./store/appStore";
@@ -78,6 +78,7 @@ const catalog = {
 
 describe("ReferenceLibraryApp", () => {
   beforeEach(() => {
+    window.history.replaceState({}, "", "/prompts/");
     localStorage.clear();
     useAppStore.getState().clearPersonalData();
     vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => catalog })));
@@ -117,6 +118,43 @@ describe("ReferenceLibraryApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "★ お気に入り" }));
 
     expect(screen.getByText(meetingPrompt.title)).toBeVisible();
+    expect(useAppStore.getState().favorites).toContain(meetingPrompt.id);
+  });
+
+  it("URLの検索語とカテゴリを復元できる", async () => {
+    window.history.replaceState({}, "", "/prompts/?q=会議&filter=meeting");
+    render(<ReferenceLibraryApp />);
+
+    await screen.findByText(meetingPrompt.title);
+    expect(screen.getByLabelText("プロンプトを検索")).toHaveValue("会議");
+    expect(screen.getByRole("button", { name: "会議・議事録" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText(imagePrompt.title)).not.toBeInTheDocument();
+  });
+
+  it("検索条件をURLへ同期する", async () => {
+    render(<ReferenceLibraryApp />);
+    await screen.findByText(meetingPrompt.title);
+
+    fireEvent.change(screen.getByLabelText("プロンプトを検索"), { target: { value: "会議" } });
+    fireEvent.click(screen.getByRole("button", { name: "会議・議事録" }));
+
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get("q")).toBe("会議");
+      expect(params.get("filter")).toBe("meeting");
+    });
+  });
+
+  it("お気に入りにしても一覧の位置を動かさない", async () => {
+    render(<ReferenceLibraryApp />);
+    await screen.findByText(meetingPrompt.title);
+
+    const titles = () => Array.from(document.querySelectorAll(".rl-row-main strong")).map((node) => node.textContent);
+    const before = titles();
+
+    fireEvent.click(screen.getByRole("button", { name: `${meetingPrompt.title}をお気に入りに追加` }));
+
+    expect(titles()).toEqual(before);
     expect(useAppStore.getState().favorites).toContain(meetingPrompt.id);
   });
 });
