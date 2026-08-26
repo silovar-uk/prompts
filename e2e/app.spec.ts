@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+const launcherPath = "./?mode=launcher";
+
 const localPrompt = {
   id: "local-writing-001",
   type: "base",
@@ -42,7 +44,7 @@ const secondLocalPrompt = {
 };
 
 test("モバイル幅で検索からプロンプト使用画面まで進める", async ({ page }) => {
-  await page.goto("./");
+  await page.goto(launcherPath);
   await expect(page.getByRole("heading", { name: "何をしたい？" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "メインナビゲーション" })).toBeVisible();
 
@@ -60,7 +62,7 @@ test("モバイル幅で検索からプロンプト使用画面まで進める",
 });
 
 test("スマホで自作プロンプトを追加・編集・複製できる", async ({ page }) => {
-  await page.goto("./");
+  await page.goto(launcherPath);
   await page.getByRole("button", { name: "設定" }).click();
   await page.getByRole("button", { name: "＋ 自分用プロンプトを追加" }).click();
 
@@ -108,7 +110,7 @@ test("自作プロンプトを並べ替え・アーカイブ・正式版へ移�
     localStorage.removeItem("prompt-launcher-local-lifecycle");
   }, { first: localPrompt, second: secondLocalPrompt });
 
-  await page.goto("./");
+  await page.goto(launcherPath);
   await page.getByRole("button", { name: "自作プロンプトを整理" }).click();
   await expect(page.getByRole("heading", { name: "自作プロンプト管理" })).toBeVisible();
 
