@@ -29,6 +29,10 @@
   text-decoration: none;
 }
 
+.rl-row-main:visited {
+  color: color-mix(in srgb, var(--rl-ink) 68%, var(--rl-muted));
+}
+
 .rl-row-main:focus-visible {
   outline: 2px solid var(--rl-focus);
   outline-offset: -3px;
