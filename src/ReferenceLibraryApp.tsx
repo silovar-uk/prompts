@@ -6,6 +6,11 @@ import { useAppStore, type ThemeMode } from "./store/appStore";
 
 type Filter = "all" | "favorites" | string;
 
+type SearchState = {
+  query: string;
+  filter: Filter;
+};
+
 const outputLabels: Record<string, string> = {
   body: "完成文",
   analysis: "分析",
@@ -44,10 +49,32 @@ function referenceHref(prompt: Prompt): string {
   return `${import.meta.env.BASE_URL}p/${prompt.id}/`;
 }
 
+function readSearchState(): SearchState {
+  const params = new URLSearchParams(window.location.search);
+  return {
+    query: params.get("q") ?? "",
+    filter: params.get("filter") ?? "all"
+  };
+}
+
+function syncSearchState(query: string, filter: Filter): void {
+  const url = new URL(window.location.href);
+  const trimmedQuery = query.trim();
+
+  if (trimmedQuery) url.searchParams.set("q", trimmedQuery);
+  else url.searchParams.delete("q");
+
+  if (filter !== "all") url.searchParams.set("filter", filter);
+  else url.searchParams.delete("filter");
+
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 export default function ReferenceLibraryApp() {
+  const initialSearchState = useMemo(readSearchState, []);
   const [{ catalog, error }, setCatalogState] = useState<{ catalog: Catalog | null; error: string | null }>({ catalog: null, error: null });
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<Filter>("all");
+  const [query, setQuery] = useState(initialSearchState.query);
+  const [filter, setFilter] = useState<Filter>(initialSearchState.filter);
   const favorites = useAppStore((state) => state.favorites);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
   const prefs = useAppStore((state) => state.prefs);
@@ -67,6 +94,16 @@ export default function ReferenceLibraryApp() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    syncSearchState(query, filter);
+  }, [filter, query]);
+
+  useEffect(() => {
+    if (!catalog || filter === "all" || filter === "favorites") return;
+    const exists = catalog.dictionaries.categories.some((category) => category.slug === filter);
+    if (!exists) setFilter("all");
+  }, [catalog, filter]);
 
   useEffect(() => {
     const applyTheme = () => {
@@ -103,8 +140,7 @@ export default function ReferenceLibraryApp() {
     }
 
     return [...byFilter].sort((left, right) =>
-      Number(favorites.includes(right.id)) - Number(favorites.includes(left.id))
-      || right.mobilePriority - left.mobilePriority
+      right.mobilePriority - left.mobilePriority
       || right.updatedAt.localeCompare(left.updatedAt)
       || left.title.localeCompare(right.title, "ja")
     );
@@ -112,6 +148,37 @@ export default function ReferenceLibraryApp() {
 
   const imageCategory = catalog?.dictionaries.categories.find((category) => category.slug === "image");
   const remainingCategories = catalog?.dictionaries.categories.filter((category) => category.slug !== "image") ?? [];
+  const hasQuery = Boolean(query.trim());
+  const hasFilter = filter !== "all";
+
+  const emptyMessage = hasQuery && hasFilter
+    ? "検索と絞り込みの組み合わせに合うプロンプトはありません。"
+    : hasQuery
+      ? `「${query.trim()}」に合うプロンプトはありません。`
+      : filter === "favorites"
+        ? "お気に入りはまだありません。"
+        : hasFilter
+          ? "このカテゴリに表示できるプロンプトはありません。"
+          : "表示できるプロンプトがありません。";
+
+  const resetEmptyState = () => {
+    if (hasQuery && !hasFilter) {
+      setQuery("");
+      return;
+    }
+    if (!hasQuery && filter === "favorites") {
+      setFilter("all");
+      return;
+    }
+    setQuery("");
+    setFilter("all");
+  };
+
+  const resetLabel = hasQuery && !hasFilter
+    ? "検索をクリア"
+    : !hasQuery && filter === "favorites"
+      ? "すべてを見る"
+      : "条件をすべて解除";
 
   return (
     <div className="rl-app">
@@ -138,7 +205,7 @@ export default function ReferenceLibraryApp() {
           </ol>
         </section>
 
-        <section className="rl-search-area" aria-label="プロンプト検索">
+        <section className="rl-search-area" role="search" aria-label="プロンプト検索">
           <label className="rl-search">
             <span aria-hidden="true">⌕</span>
             <input
@@ -146,6 +213,7 @@ export default function ReferenceLibraryApp() {
               onChange={(event) => setQuery(event.target.value)}
               placeholder="例：画像生成、会議の決定、文章を短く"
               aria-label="プロンプトを検索"
+              aria-controls="prompt-results"
             />
             {query && <button type="button" onClick={() => setQuery("")} aria-label="検索語を消す">×</button>}
           </label>
@@ -177,14 +245,14 @@ export default function ReferenceLibraryApp() {
             <output aria-live="polite" aria-atomic="true">{results.length}件</output>
           </div>
 
-          <div className="rl-list">
+          <div className="rl-list" id="prompt-results">
             {results.map((prompt) => {
               const isFavorite = favorites.includes(prompt.id);
               const category = categoryMap.get(prompt.category);
               const output = outputLabels[prompt.outputTypes[0] ?? ""] ?? prompt.outputTypes[0] ?? "成果物";
               return (
                 <article className="rl-row" key={prompt.id}>
-                  <a href={referenceHref(prompt)} className="rl-row-main">
+                  <a href={referenceHref(prompt)} className="rl-row-main" aria-label={`${prompt.title}。${prompt.summary}`}>
                     <span className="rl-row-icon" aria-hidden="true">{prompt.emoji}</span>
                     <span className="rl-row-copy">
                       <strong>{prompt.title}</strong>
@@ -211,8 +279,8 @@ export default function ReferenceLibraryApp() {
 
           {!error && catalog && results.length === 0 && (
             <div className="rl-empty">
-              <p>該当するプロンプトはありません。</p>
-              <button type="button" onClick={() => { setQuery(""); setFilter("all"); }}>絞り込みを解除</button>
+              <p>{emptyMessage}</p>
+              {(hasQuery || hasFilter) && <button type="button" onClick={resetEmptyState}>{resetLabel}</button>}
             </div>
           )}
         </section>
