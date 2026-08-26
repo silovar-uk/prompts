@@ -2,10 +2,6 @@ import { expect, test } from "@playwright/test";
 
 const launcherPath = "./?mode=launcher";
 
-function mainNav(page: Parameters<typeof test>[0] extends never ? never : any) {
-  return page.getByRole("navigation", { name: "メインナビゲーション" });
-}
-
 test("スマホでホームのボタンと下部ナビが反応する", async ({ page }) => {
   await page.goto(launcherPath);
   await expect(page.getByRole("heading", { name: "何をしたい？" })).toBeVisible();
