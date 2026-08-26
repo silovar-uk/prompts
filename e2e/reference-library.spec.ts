@@ -15,7 +15,7 @@ test("既定のReference Libraryがスマホ幅で崩れない", async ({ page }
 test("Reference Libraryの選択状態が支援技術にも伝わる", async ({ page }) => {
   await page.goto("./");
 
-  const favorite = page.getByRole("button", { name: /お気に入りに追加/ }).first();
+  const favorite = page.locator(".rl-favorite").first();
   await expect(favorite).toHaveAttribute("aria-pressed", "false");
   await favorite.click();
   await expect(favorite).toHaveAttribute("aria-pressed", "true");
