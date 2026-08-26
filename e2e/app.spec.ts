@@ -51,11 +51,11 @@ test("モバイル幅で検索からプロンプト使用画面まで進める",
   await page.getByLabel("プロンプトを検索").fill("文章を短くしたい");
   const card = page.getByText("内容を変えずに文章を短くする").first();
   await expect(card).toBeVisible();
-  await page.getByRole("button", { name: "使う" }).first().click();
+  await page.locator(".lf-row-main").first().click();
 
   await expect(page.getByRole("heading", { name: "内容を変えずに文章を短くする" })).toBeVisible();
   await expect(page.getByLabel("対象の文章")).toBeVisible();
-  await expect(page.getByRole("button", { name: "📋 プロンプトをコピー" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "プロンプトをコピー" })).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
@@ -63,8 +63,8 @@ test("モバイル幅で検索からプロンプト使用画面まで進める",
 
 test("スマホで自作プロンプトを追加・編集・複製できる", async ({ page }) => {
   await page.goto(launcherPath);
-  await page.getByRole("button", { name: "設定" }).click();
-  await page.getByRole("button", { name: "＋ 自分用プロンプトを追加" }).click();
+  await page.getByRole("button", { name: "一覧" }).click();
+  await page.getByRole("button", { name: "＋ 自作" }).click();
 
   await page.getByLabel("名前").fill("企画の弱点を洗い出す");
   await page.getByLabel("何に使う？").fill("企画メモから実現性とリスクを点検する");
@@ -74,14 +74,16 @@ test("スマホで自作プロンプトを追加・編集・複製できる", as
   await page.getByRole("button", { name: "保存して使う" }).click();
 
   await expect(page.getByRole("heading", { name: "企画の弱点を洗い出す" })).toBeVisible();
-  await page.getByRole("button", { name: "✏️ 編集" }).click();
+  await page.getByRole("button", { name: "← 戻る" }).click();
+  await page.getByRole("button", { name: "編集" }).click();
   await page.getByLabel("名前").fill("企画の弱点と優先順位を整理する");
   await page.getByRole("button", { name: "次へ" }).click();
   await page.getByRole("button", { name: "次へ" }).click();
   await page.getByRole("button", { name: "更新して使う" }).click();
 
   await expect(page.getByRole("heading", { name: "企画の弱点と優先順位を整理する" })).toBeVisible();
-  await page.getByRole("button", { name: "⧉ 複製" }).click();
+  await page.getByRole("button", { name: "← 戻る" }).click();
+  await page.getByRole("button", { name: "複製" }).click();
   await expect(page.getByLabel("名前")).toHaveValue("企画の弱点と優先順位を整理する（コピー）");
   await page.getByRole("button", { name: "次へ" }).click();
   await page.getByRole("button", { name: "次へ" }).click();
@@ -111,14 +113,15 @@ test("自作プロンプトを並べ替え・アーカイブ・正式版へ移�
   }, { first: localPrompt, second: secondLocalPrompt });
 
   await page.goto(launcherPath);
-  await page.getByRole("button", { name: "自作プロンプトを整理" }).click();
+  await page.getByRole("button", { name: "一覧" }).click();
+  await page.getByRole("button", { name: "整理・アーカイブ・移行" }).click();
   await expect(page.getByRole("heading", { name: "自作プロンプト管理" })).toBeVisible();
 
   await page.getByRole("button", { name: "企画を整理するを上へ" }).click();
   await expect(page.getByText("企画を整理する").first()).toBeVisible();
 
   await page.getByRole("button", { name: "アーカイブ" }).first().click();
-  await page.getByRole("button", { name: /アーカイブ.*1/ }).click();
+  await page.getByRole("button", { name: /アーカイブ\s*1/ }).click();
   await expect(page.getByRole("button", { name: "利用中へ戻す" })).toBeVisible();
   await page.getByRole("button", { name: "利用中へ戻す" }).click();
 
@@ -126,7 +129,7 @@ test("自作プロンプトを並べ替え・アーカイブ・正式版へ移�
   await page.getByLabel("正式プロンプトを検索").fill("内容を変えずに文章を短くする");
   await page.getByRole("button").filter({ hasText: "内容を変えずに文章を短くする" }).first().click();
 
-  await expect(page.getByRole("button", { name: /移行済み.*1/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /移行済み\s*1/ })).toBeVisible();
   await expect(page.getByText("→ 内容を変えずに文章を短くする")).toBeVisible();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
