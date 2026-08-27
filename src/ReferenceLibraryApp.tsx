@@ -150,6 +150,21 @@ export default function ReferenceLibraryApp() {
   const remainingCategories = catalog?.dictionaries.categories.filter((category) => category.slug !== "image") ?? [];
   const hasQuery = Boolean(query.trim());
   const hasFilter = filter !== "all";
+  const activeFilterLabel = filter === "favorites"
+    ? "お気に入り"
+    : filter !== "all"
+      ? categoryMap.get(filter)?.label ?? filter
+      : null;
+
+  const resultsHeading = hasQuery
+    ? activeFilterLabel
+      ? `「${query.trim()}」 × ${activeFilterLabel}`
+      : `「${query.trim()}」の検索結果`
+    : filter === "favorites"
+      ? "お気に入り"
+      : filter === "all"
+        ? "すべてのプロンプト"
+        : categoryMap.get(filter)?.label ?? "プロンプト";
 
   const emptyMessage = hasQuery && hasFilter
     ? "検索と絞り込みの組み合わせに合うプロンプトはありません。"
@@ -162,23 +177,22 @@ export default function ReferenceLibraryApp() {
           : "表示できるプロンプトがありません。";
 
   const resetEmptyState = () => {
-    if (hasQuery && !hasFilter) {
-      setQuery("");
-      return;
-    }
-    if (!hasQuery && filter === "favorites") {
+    if (hasQuery && hasFilter) {
       setFilter("all");
       return;
     }
-    setQuery("");
-    setFilter("all");
+    if (hasQuery) {
+      setQuery("");
+      return;
+    }
+    if (hasFilter) setFilter("all");
   };
 
-  const resetLabel = hasQuery && !hasFilter
-    ? "検索をクリア"
-    : !hasQuery && filter === "favorites"
-      ? "すべてを見る"
-      : "条件をすべて解除";
+  const resetLabel = hasQuery && hasFilter
+    ? "絞り込みを解除"
+    : hasQuery
+      ? "検索をクリア"
+      : "すべてを見る";
 
   return (
     <div className="rl-app">
@@ -239,7 +253,7 @@ export default function ReferenceLibraryApp() {
         <section className="rl-results">
           <div className="rl-results-head">
             <div>
-              <h2>{query ? "検索結果" : filter === "favorites" ? "お気に入り" : filter === "all" ? "すべてのプロンプト" : categoryMap.get(filter)?.label ?? "プロンプト"}</h2>
+              <h2>{resultsHeading}</h2>
               <p>タイトルを押すと、人向けの説明とAI向け実行仕様を開きます。</p>
             </div>
             <output aria-live="polite" aria-atomic="true">{results.length}件</output>
@@ -252,15 +266,15 @@ export default function ReferenceLibraryApp() {
               const output = outputLabels[prompt.outputTypes[0] ?? ""] ?? prompt.outputTypes[0] ?? "成果物";
               return (
                 <article className="rl-row" key={prompt.id}>
-                  <a href={referenceHref(prompt)} className="rl-row-main" aria-label={`${prompt.title}。${prompt.summary}`}>
+                  <a href={referenceHref(prompt)} className="rl-row-main" aria-label={`${prompt.title}。${prompt.problem}。${prompt.summary}`}>
                     <span className="rl-row-icon" aria-hidden="true">{prompt.emoji}</span>
                     <span className="rl-row-copy">
                       <strong>{prompt.title}</strong>
-                      <span className="rl-row-summary">{prompt.summary}</span>
+                      <span className="rl-row-fit"><b>こんなとき</b>{prompt.problem}</span>
                       <span className="rl-row-meta">
+                        <span className="rl-row-output">返るもの：{output}</span>
+                        <span className="rl-row-category">{category?.label ?? prompt.category}</span>
                         <code>{prompt.id}@{prompt.version}</code>
-                        <span>{category?.label ?? prompt.category}</span>
-                        <span>返るもの：{output}</span>
                       </span>
                     </span>
                     <span className="rl-row-arrow" aria-hidden="true">›</span>
