@@ -92,6 +92,8 @@ describe("ReferenceLibraryApp", () => {
     render(<ReferenceLibraryApp />);
     const link = await screen.findByRole("link", { name: new RegExp(meetingPrompt.title) });
     expect(link).toHaveAttribute("href", "/prompts/p/meeting-001/");
+    expect(screen.getByText(meetingPrompt.problem)).toBeVisible();
+    expect(screen.getByText("返るもの：議事録")).toBeVisible();
     expect(screen.getByText("meeting-001@1")).toBeVisible();
   });
 
@@ -156,5 +158,33 @@ describe("ReferenceLibraryApp", () => {
 
     expect(titles()).toEqual(before);
     expect(useAppStore.getState().favorites).toContain(meetingPrompt.id);
+  });
+
+  it("検索語と絞り込みを結果見出しで確認できる", async () => {
+    window.history.replaceState({}, "", "/prompts/?q=会議&filter=meeting");
+    render(<ReferenceLibraryApp />);
+
+    await screen.findByText(meetingPrompt.title);
+    expect(screen.getByRole("heading", { name: "「会議」 × 会議・議事録" })).toBeVisible();
+  });
+
+  it("0件時は検索語を残して絞り込みだけ解除できる", async () => {
+    render(<ReferenceLibraryApp />);
+    await screen.findByText(meetingPrompt.title);
+
+    fireEvent.change(screen.getByLabelText("プロンプトを検索"), { target: { value: "会議メモ" } });
+    fireEvent.click(screen.getByRole("button", { name: "🖼️ 画像生成" }));
+
+    expect(screen.getByText("検索と絞り込みの組み合わせに合うプロンプトはありません。")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "絞り込みを解除" }));
+
+    expect(screen.getByLabelText("プロンプトを検索")).toHaveValue("会議メモ");
+    expect(screen.getByRole("button", { name: "すべて" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText(meetingPrompt.title)).toBeVisible();
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get("q")).toBe("会議メモ");
+      expect(params.get("filter")).toBeNull();
+    });
   });
 });
