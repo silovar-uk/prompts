@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { catalogSchema, type Catalog } from "../src/schema/catalog.ts";
+import { validateOutcomeLabels } from "../src/reference-outcomes.ts";
 import { imagePrompts } from "./image-prompts.ts";
 import { studyPrompts } from "./study-prompts.ts";
 
@@ -94,6 +95,7 @@ async function main() {
   ]);
 
   validateProblemCopy(prompts);
+  validateOutcomeLabels(prompts);
 
   const nextCatalog: Catalog = {
     ...baseCatalog,
