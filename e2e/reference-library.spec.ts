@@ -7,6 +7,7 @@ test("既定のReference Libraryがスマホ幅で崩れない", async ({ page }
   await expect(page.getByLabel("プロンプトを検索")).toBeVisible();
   await expect(page.getByRole("button", { name: "すべて" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".rl-row").first()).toBeVisible();
+  await expect(page.locator(".rl-row-fit b").first()).toHaveText("こんなとき");
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow).toBe(false);
@@ -34,6 +35,7 @@ test("検索条件を保ったまま詳細を見て検索結果へ戻れる", as
   const meetingFilter = page.getByRole("button", { name: "会議・議事録" });
   await meetingFilter.click();
 
+  await expect(page.getByRole("heading", { name: "「会議」 × 会議・議事録" })).toBeVisible();
   await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("会議");
   await expect.poll(() => new URL(page.url()).searchParams.get("filter")).toBe("meeting");
   await expect(page.locator(".rl-row-main").first()).toBeVisible();
@@ -59,4 +61,21 @@ test("0件から検索条件をすぐ戻せる", async ({ page }) => {
   await expect(page.getByLabel("プロンプトを検索")).toHaveValue("");
   await expect(page.locator(".rl-row").first()).toBeVisible();
   await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBeNull();
+});
+
+test("0件でも検索意図を残して絞り込みだけ広げられる", async ({ page }) => {
+  await page.goto("./");
+
+  const search = page.getByLabel("プロンプトを検索");
+  await search.fill("議事録");
+  await page.getByRole("button", { name: "🖼️ 画像生成" }).click();
+
+  await expect(page.getByText("検索と絞り込みの組み合わせに合うプロンプトはありません。")).toBeVisible();
+  await page.getByRole("button", { name: "絞り込みを解除" }).click();
+
+  await expect(search).toHaveValue("議事録");
+  await expect(page.getByRole("button", { name: "すべて" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".rl-row").first()).toBeVisible();
+  await expect.poll(() => new URL(page.url()).searchParams.get("q")).toBe("議事録");
+  await expect.poll(() => new URL(page.url()).searchParams.get("filter")).toBeNull();
 });
