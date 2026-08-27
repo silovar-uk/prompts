@@ -93,7 +93,7 @@ describe("ReferenceLibraryApp", () => {
     const link = await screen.findByRole("link", { name: new RegExp(meetingPrompt.title) });
     expect(link).toHaveAttribute("href", "/prompts/p/meeting-001/");
     expect(screen.getByText(meetingPrompt.problem)).toBeVisible();
-    expect(screen.getByText("返るもの：議事録")).toBeVisible();
+    expect(screen.getByText("返るもの：決定事項＋TODO")).toBeVisible();
     expect(screen.getByText("meeting-001@1")).toBeVisible();
   });
 
@@ -104,6 +104,7 @@ describe("ReferenceLibraryApp", () => {
     fireEvent.click(screen.getByRole("button", { name: "🖼️ 画像生成" }));
 
     expect(screen.getByText(imagePrompt.title)).toBeVisible();
+    expect(screen.getByText("返るもの：イベントKV生成指示")).toBeVisible();
     expect(screen.queryByText(meetingPrompt.title)).not.toBeInTheDocument();
   });
 
