@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Catalog, Prompt } from "./schema/catalog";
 import { catalogSchema } from "./schema/catalog";
+import { resolveOutcomeLabel } from "./reference-outcomes";
 import { scorePrompt } from "./search/core";
 import { useAppStore, type ThemeMode } from "./store/appStore";
 
@@ -9,35 +10,6 @@ type Filter = "all" | "favorites" | string;
 type SearchState = {
   query: string;
   filter: Filter;
-};
-
-const outputLabels: Record<string, string> = {
-  body: "完成文",
-  analysis: "分析",
-  outline: "構成案",
-  minutes: "議事録",
-  agenda: "アジェンダ",
-  email: "メール",
-  ideas: "企画案",
-  concept: "コンセプト",
-  "action-plan": "実行計画",
-  checklist: "チェックリスト",
-  explanation: "解説",
-  comparison: "比較表",
-  "case-list": "事例一覧",
-  "verification-plan": "確認計画",
-  "press-release": "プレスリリース",
-  newsletter: "メルマガ原稿",
-  "social-posts": "SNS投稿案",
-  "risk-review": "点検結果",
-  tsv: "TSV",
-  requirements: "要件定義",
-  "code-review": "コードレビュー",
-  "slide-outline": "スライド構成",
-  "image-prompt": "画像生成プロンプト",
-  json: "JSON",
-  text: "文章",
-  lesson: "教材"
 };
 
 function resolveTheme(theme: ThemeMode): "light" | "dark" {
@@ -263,7 +235,7 @@ export default function ReferenceLibraryApp() {
             {results.map((prompt) => {
               const isFavorite = favorites.includes(prompt.id);
               const category = categoryMap.get(prompt.category);
-              const output = outputLabels[prompt.outputTypes[0] ?? ""] ?? prompt.outputTypes[0] ?? "成果物";
+              const output = resolveOutcomeLabel(prompt);
               return (
                 <article className="rl-row" key={prompt.id}>
                   <a href={referenceHref(prompt)} className="rl-row-main" aria-label={`${prompt.title}。${prompt.problem}。${prompt.summary}`}>
